@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: social-backend
+    environment:
+      - PORT=5001
+      - MONGO_URI=mongodb+srv://harshgovil460:63J7auxCvgkUJrKe@cluster0.b8b6goa.mongodb.net/social-platform?retryWrites=true&w=majority&appName=Cluster0
+      - JWT_SECRET_KEY=mysecretkey
+      - STREAM_API_KEY=77dh4mq8qrkw
+      - STREAM_API_SECRET=s95k2gb3w4bhmkqrex9vp3y3maecyuyn25vrhj2kkk5w8w3wsp6t7fkxucubmscc
+    networks:
+      - social-network
+    restart: unless-stopped
+
+  frontend:
+    build: 
+      context: ./frontend
+      args:
+        - VITE_API_URL=/api
+        - VITE_STREAM_API_KEY=77dh4mq8qrkw
+    container_name: social-frontend
+    depends_on:
+      - backend
+    networks:
+      - social-network
+    restart: unless-stopped
+
+  ngrok:
+    image: ngrok/ngrok:alpine
+    container_name: social-ngrok
+    command: http frontend:80 --log stdout
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    ports:
+      - "4040:4040"
+    networks:
+      - social-network
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+networks:
+  social-network:
+    driver: bridge
