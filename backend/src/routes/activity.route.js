@@ -382,7 +382,10 @@ router.get("/dashboard", protectRoute, async (req, res) => {
       currentStreak,
       isOnline: activity.currentSession?.isActive || false,
       sessionStartTime: activity.currentSession?.loginTime,
-      lastActivityTime: activity.currentSession?.lastActivityTime
+      lastActivityTime: activity.currentSession?.lastActivityTime,
+      totalXP: activity.gamification?.xp || 0,
+      totalCoins: activity.gamification?.coins || 0,
+      level: activity.gamification?.level || 1
     });
   } catch (error) {
     console.error("Error fetching dashboard data:", error);

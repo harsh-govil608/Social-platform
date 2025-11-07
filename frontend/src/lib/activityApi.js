@@ -60,3 +60,11 @@ export const getActivityDashboard = async () => {
   const response = await axiosInstance.get('/activity/dashboard');
   return response.data;
 };
+
+// Get weekly leaderboard
+export const getWeeklyLeaderboard = async (limit = 10) => {
+  const response = await axiosInstance.get('/gamification/leaderboard', {
+    params: { category: 'xp', timeframe: 'week', limit }
+  });
+  return response.data;
+};

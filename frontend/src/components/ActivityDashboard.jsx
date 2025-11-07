@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import useAuthUser from '../hooks/useAuthUser';
 import {
   Clock,
   TrendingUp,
@@ -23,19 +24,23 @@ import {
   Timer,
   Pause,
   Play,
-  RefreshCw
+  RefreshCw,
+  Crown,
+  Coins
 } from 'lucide-react';
-import { 
-  getActivityDashboard, 
-  getWeeklyStats, 
+import {
+  getActivityDashboard,
+  getWeeklyStats,
   getMonthlyStats,
   getAchievements,
+  getWeeklyLeaderboard,
   initActivity,
   logActivity
 } from '../lib/activityApi';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
 const ActivityDashboard = () => {
+  const { authUser } = useAuthUser();
   const [timeRange, setTimeRange] = useState('week');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [sessionTimer, setSessionTimer] = useState(0);
@@ -80,6 +85,13 @@ const ActivityDashboard = () => {
   const { data: achievements, isLoading: loadingAchievements } = useQuery({
     queryKey: ['achievements'],
     queryFn: getAchievements
+  });
+
+  // Fetch weekly leaderboard
+  const { data: weeklyLeaderboard, isLoading: loadingLeaderboard } = useQuery({
+    queryKey: ['weeklyLeaderboard'],
+    queryFn: () => getWeeklyLeaderboard(10),
+    refetchInterval: 60000 // Refresh every minute
   });
 
   // Update session timer
@@ -189,7 +201,7 @@ const ActivityDashboard = () => {
       </div>
 
       {/* Main Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="stat bg-base-100 rounded-lg shadow-lg">
           <div className="stat-figure text-primary">
             <Timer className="w-8 h-8" />
@@ -232,6 +244,19 @@ const ActivityDashboard = () => {
             {dashboardData?.currentStreak || 0}
           </div>
           <div className="stat-desc">Days in a row</div>
+        </div>
+
+        <div className="stat bg-gradient-to-br from-yellow-100 to-amber-100 dark:from-yellow-900/30 dark:to-amber-900/30 rounded-lg shadow-lg">
+          <div className="stat-figure text-yellow-600 dark:text-yellow-400">
+            <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center shadow-lg">
+              <Coins className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <div className="stat-title">Total Coins</div>
+          <div className="stat-value text-yellow-600 dark:text-yellow-400">
+            {dashboardData?.totalCoins || 0}
+          </div>
+          <div className="stat-desc">Earn by completing activities</div>
         </div>
       </div>
 
@@ -326,6 +351,116 @@ const ActivityDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Leaderboard */}
+      {timeRange === 'week' && !loadingLeaderboard && weeklyLeaderboard?.leaderboard && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-warning" />
+                Weekly Leaderboard
+              </h3>
+              <span className="text-sm opacity-70">Top 10 Learners</span>
+            </div>
+
+            <div className="space-y-2">
+              {weeklyLeaderboard.leaderboard.slice(0, 10).map((entry, index) => {
+                const rank = index + 1;
+                const isCurrentUser = entry.user?._id === authUser?._id;
+
+                return (
+                  <div
+                    key={entry._id}
+                    className={`flex items-center gap-4 p-3 rounded-lg transition-all ${
+                      isCurrentUser ? 'bg-primary/10 border-2 border-primary' : 'bg-base-200'
+                    }`}
+                  >
+                    {/* Rank */}
+                    <div className="flex items-center justify-center w-12">
+                      {rank === 1 && <Crown className="w-6 h-6 text-warning" />}
+                      {rank === 2 && <Star className="w-6 h-6 text-gray-400" />}
+                      {rank === 3 && <Star className="w-6 h-6 text-amber-600" />}
+                      {rank > 3 && <span className="text-lg font-bold">#{rank}</span>}
+                    </div>
+
+                    {/* Avatar */}
+                    <div className="avatar">
+                      <div className="w-10 rounded-full">
+                        <img
+                          src={entry.user?.profilePic || '/avatar.png'}
+                          alt={entry.user?.fullName}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Name */}
+                    <div className="flex-1">
+                      <p className={`font-semibold ${isCurrentUser ? 'text-primary' : ''}`}>
+                        {entry.user?.fullName}
+                      </p>
+                      <p className="text-xs opacity-70">
+                        Level {entry.level || 1}
+                      </p>
+                    </div>
+
+                    {/* XP */}
+                    <div className="text-right">
+                      <div className="flex items-center gap-1">
+                        <Zap className="w-4 h-4 text-warning" />
+                        <span className="font-bold">{entry.xp?.toLocaleString() || 0}</span>
+                      </div>
+                      <p className="text-xs opacity-70">XP</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* User's rank if not in top 10 */}
+            {weeklyLeaderboard.leaderboard.length > 10 && (
+              (() => {
+                const userRank = weeklyLeaderboard.leaderboard.findIndex(
+                  e => e.user?._id === authUser?._id
+                );
+                if (userRank >= 10) {
+                  const entry = weeklyLeaderboard.leaderboard[userRank];
+                  return (
+                    <>
+                      <div className="divider text-sm">Your Rank</div>
+                      <div className="flex items-center gap-4 p-3 rounded-lg bg-primary/10 border-2 border-primary">
+                        <div className="flex items-center justify-center w-12">
+                          <span className="text-lg font-bold">#{userRank + 1}</span>
+                        </div>
+                        <div className="avatar">
+                          <div className="w-10 rounded-full">
+                            <img
+                              src={authUser?.profilePic || '/avatar.png'}
+                              alt={authUser?.fullName}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-primary">{authUser?.fullName}</p>
+                          <p className="text-xs opacity-70">Level {entry.level || 1}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-1">
+                            <Zap className="w-4 h-4 text-warning" />
+                            <span className="font-bold">{entry.xp?.toLocaleString() || 0}</span>
+                          </div>
+                          <p className="text-xs opacity-70">XP</p>
+                        </div>
+                      </div>
+                    </>
+                  );
+                }
+                return null;
+              })()
+            )}
           </div>
         </div>
       )}

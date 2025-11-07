@@ -8,7 +8,6 @@ import {
   Channel,
   ChannelHeader,
   Chat,
-  
   MessageInput,
   MessageList,
   Thread,

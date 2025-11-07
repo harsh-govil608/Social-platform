@@ -1,8 +1,47 @@
 import DailyChallenge from "../models/dailyChallenge.model.js";
 import Vocabulary from "../models/vocabulary.model.js";
 import LearningVideo from "../models/learningVideo.model.js";
-import LearningProgress from "../models/learningProgress.model.js";
+import LearningProgress from "../models/LearningProgress.js";
 import User from "../models/User.js";
+import UserActivity from "../models/UserActivity.js";
+
+// Helper function to update XP and Coins in both LearningProgress and UserActivity
+const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
+  try {
+    // Update or create UserActivity
+    let userActivity = await UserActivity.findOne({ user: userId });
+
+    if (!userActivity) {
+      userActivity = await UserActivity.create({
+        user: userId,
+        gamification: {
+          level: 1,
+          xp: xpAmount,
+          coins: coinsAmount
+        },
+        metrics: {},
+        streaks: {}
+      });
+    } else {
+      // Add XP and Coins to UserActivity
+      userActivity.gamification.xp = (userActivity.gamification.xp || 0) + xpAmount;
+      userActivity.gamification.coins = (userActivity.gamification.coins || 0) + coinsAmount;
+
+      // Update level based on XP (1000 XP per level)
+      const newLevel = Math.floor(userActivity.gamification.xp / 1000) + 1;
+      if (newLevel > userActivity.gamification.level) {
+        userActivity.gamification.level = newLevel;
+      }
+
+      await userActivity.save();
+    }
+
+    return userActivity;
+  } catch (error) {
+    console.error('Error updating user XP and Coins:', error);
+    throw error;
+  }
+};
 
 // Get or create learning progress for user
 export const getLearningProgress = async (req, res) => {
@@ -23,16 +62,15 @@ export const getLearningProgress = async (req, res) => {
     const userId = req.user._id;
     const user = await User.findById(userId);
     
-    let progress = await LearningProgress.findOne({ userId });
+    let progress = await LearningProgress.findOne({ user: userId });
     
     if (!progress) {
       // Create new progress record
       progress = await LearningProgress.create({
-        userId,
-        language: user.learningLanguage || "spanish",
-        level: "beginner",
-        xp: 0,
-        streak: 0
+        user: userId,
+        totalXP: 0,
+        currentLevel: 1,
+        currentStreak: 0
       });
     }
     
@@ -62,7 +100,7 @@ export const getDailyChallenges = async (req, res) => {
       console.log("Fetching challenges for user:", userId, "language:", language);
       
       // Get user's progress to determine level
-      const progress = await LearningProgress.findOne({ userId });
+      const progress = await LearningProgress.findOne({ user: userId });
       level = progress?.level || "beginner";
     } else {
       console.log("Fetching challenges without authentication - using defaults");
@@ -93,7 +131,7 @@ export const getDailyChallenges = async (req, res) => {
     }
     
     // Check which challenges are already completed today
-    const progress = await LearningProgress.findOne({ userId: req.user._id });
+    const progress = await LearningProgress.findOne({ user: req.user._id });
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -120,41 +158,63 @@ export const completeDailyChallenge = async (req, res) => {
   try {
     const userId = req.user._id;
     const { challengeId, score, timeSpent } = req.body;
-    
-    const progress = await LearningProgress.findOne({ userId });
+
+    let progress = await LearningProgress.findOne({ user: userId });
     if (!progress) {
-      return res.status(404).json({ message: "Learning progress not found" });
+      // Create new progress if it doesn't exist
+      progress = await LearningProgress.create({
+        user: userId,
+        totalXP: 0,
+        currentLevel: 1,
+        dailyChallenges: { completed: [] }
+      });
     }
-    
+
     const challenge = await DailyChallenge.findById(challengeId);
     if (!challenge) {
       return res.status(404).json({ message: "Challenge not found" });
     }
-    
-    // Calculate XP earned based on score
+
+    // Calculate XP and Coins earned based on score
     const xpEarned = Math.floor((score / 100) * challenge.xpReward);
-    
-    // Add to completed challenges
+    const coinsEarned = Math.floor((score / 100) * (challenge.coins || Math.round(challenge.xpReward / 5)));
+
+    // Add to completed challenges - Initialize if needed
+    if (!progress.dailyChallenges) {
+      progress.dailyChallenges = { completed: [] };
+    }
+    if (!progress.dailyChallenges.completed) {
+      progress.dailyChallenges.completed = [];
+    }
+
     progress.dailyChallenges.completed.push({
       challengeId,
       completedAt: new Date(),
       score,
-      xpEarned
+      xpEarned,
+      coinsEarned
     });
-    
+
     // Update XP
-    progress.addXP(xpEarned);
-    
+    const xpResult = progress.addXP(xpEarned);
+
     // Update streak
     progress.updateStreak();
-    
+
     await progress.save();
-    
+
+    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+    await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
+
     res.status(200).json({
       xpEarned,
-      newTotalXP: progress.xp,
-      newStreak: progress.streak,
-      newLevel: progress.level
+      coinsEarned,
+      totalXP: progress.totalXP,
+      newTotalXP: progress.totalXP,
+      currentLevel: progress.currentLevel,
+      newLevel: progress.currentLevel,
+      streak: progress.currentStreak,
+      newStreak: progress.currentStreak
     });
   } catch (error) {
     console.error("Error completing challenge:", error);
@@ -173,7 +233,7 @@ export const getDailyVocabulary = async (req, res) => {
       const user = await User.findById(userId);
       language = user.learningLanguage || "spanish";
       
-      const progress = await LearningProgress.findOne({ userId });
+      const progress = await LearningProgress.findOne({ user: userId });
       level = progress?.level || "beginner";
     }
     
@@ -193,7 +253,7 @@ export const masterVocabulary = async (req, res) => {
     const userId = req.user._id;
     const { words, timeSpent, accuracy } = req.body;
     
-    const progress = await LearningProgress.findOne({ userId });
+    const progress = await LearningProgress.findOne({ user: userId });
     if (!progress) {
       return res.status(404).json({ message: "Learning progress not found" });
     }
@@ -208,17 +268,22 @@ export const masterVocabulary = async (req, res) => {
     
     progress.vocabulary.mastered.push(...masteredWords);
     progress.vocabulary.totalWords += masteredWords.length;
-    
-    // Calculate XP based on performance
+
+    // Calculate XP and Coins based on performance
     const xpEarned = Math.floor(masteredWords.length * 10 * (accuracy / 100));
+    const coinsEarned = Math.floor(masteredWords.length * 2 * (accuracy / 100)); // 2 coins per word
     progress.addXP(xpEarned);
-    
+
     await progress.save();
-    
+
+    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+    await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
+
     res.status(200).json({
       masteredCount: masteredWords.length,
       xpEarned,
-      newTotalXP: progress.xp
+      coinsEarned,
+      newTotalXP: progress.totalXP
     });
   } catch (error) {
     console.error("Error mastering vocabulary:", error);
@@ -239,7 +304,7 @@ export const getLearningVideos = async (req, res) => {
       const user = await User.findById(userId);
       language = user.learningLanguage || "spanish";
       
-      progress = await LearningProgress.findOne({ userId });
+      progress = await LearningProgress.findOne({ user: userId });
       level = progress?.level || "beginner";
       
       // Check if user is premium (you can implement your own logic)
@@ -275,7 +340,7 @@ export const completeVideo = async (req, res) => {
     const userId = req.user._id;
     const { videoId, watchProgress, completed } = req.body;
     
-    const progress = await LearningProgress.findOne({ userId });
+    const progress = await LearningProgress.findOne({ user: userId });
     if (!progress) {
       return res.status(404).json({ message: "Learning progress not found" });
     }
@@ -304,21 +369,27 @@ export const completeVideo = async (req, res) => {
       progress.videos.totalWatched += 1;
     }
     
-    // Award XP if completed
+    // Award XP and Coins if completed
     let xpEarned = 0;
+    let coinsEarned = 0;
     if (completed && (!existingWatch || !existingWatch.completed)) {
       xpEarned = video.xpReward;
+      coinsEarned = Math.round(video.xpReward / 5); // Coins = XP / 5
       progress.addXP(xpEarned);
+
+      // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+      await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
     }
-    
+
     // Update video view count
     await video.incrementViewCount();
-    
+
     await progress.save();
-    
+
     res.status(200).json({
       xpEarned,
-      newTotalXP: progress.xp
+      coinsEarned,
+      newTotalXP: progress.totalXP
     });
   } catch (error) {
     console.error("Error completing video:", error);
@@ -330,7 +401,7 @@ export const completeVideo = async (req, res) => {
 export const getWeeklyStats = async (req, res) => {
   try {
     const userId = req.user._id;
-    const progress = await LearningProgress.findOne({ userId });
+    const progress = await LearningProgress.findOne({ user: userId });
     
     if (!progress) {
       return res.status(404).json({ message: "Learning progress not found" });
@@ -367,9 +438,21 @@ export const getWeeklyStats = async (req, res) => {
 // Get learning stats
 export const getLearningStats = async (req, res) => {
   try {
+    // Check if user is authenticated
+    if (!req.user) {
+      return res.status(200).json({
+        totalXP: 0,
+        streak: 0,
+        level: "beginner",
+        wordsLearned: 0,
+        minutesLearned: 0,
+        challengesCompleted: 0
+      });
+    }
+
     const userId = req.user._id;
-    const progress = await LearningProgress.findOne({ userId });
-    
+    const progress = await LearningProgress.findOne({ user: userId });
+
     if (!progress) {
       return res.status(200).json({
         totalXP: 0,
@@ -380,14 +463,14 @@ export const getLearningStats = async (req, res) => {
         challengesCompleted: 0
       });
     }
-    
+
     res.status(200).json({
-      totalXP: progress.xp,
-      streak: progress.streak,
-      level: progress.level,
-      wordsLearned: progress.vocabulary.totalWords,
-      minutesLearned: progress.conversations.totalMinutes + progress.videos.totalMinutes,
-      challengesCompleted: progress.dailyChallenges.completed.length
+      totalXP: progress.totalXP,
+      streak: progress.currentStreak,
+      level: progress.currentLevel,
+      wordsLearned: progress.vocabulary?.length || 0,
+      minutesLearned: (progress.conversations?.totalMinutes || 0) + (progress.videos?.totalMinutes || 0),
+      challengesCompleted: progress.dailyChallenges?.length || 0
     });
   } catch (error) {
     console.error("Error fetching learning stats:", error);
@@ -399,26 +482,29 @@ export const getLearningStats = async (req, res) => {
 export const getLeaderboard = async (req, res) => {
   try {
     const { timeframe = "week", limit = 10 } = req.query;
-    
-    // For now, return top users by XP
+
+    // Get top users by XP - Use 'user' field from LearningProgress schema
     const topUsers = await LearningProgress.find()
-      .sort({ xp: -1 })
+      .sort({ totalXP: -1 })
       .limit(parseInt(limit))
-      .populate("userId", "fullName profilePicture");
-    
+      .populate("user", "fullName profilePic username");
+
     const leaderboard = topUsers.map((progress, index) => ({
       rank: index + 1,
-      user: {
-        id: progress.userId._id,
-        name: progress.userId.fullName,
-        avatar: progress.userId.profilePicture
-      },
-      xp: progress.xp,
-      level: progress.level,
-      streak: progress.streak
-    }));
-    
-    res.status(200).json(leaderboard);
+      fullName: progress.user?.fullName || "Unknown",
+      profilePic: progress.user?.profilePic || null,
+      username: progress.user?.username || null,
+      userId: progress.user?._id || null,
+      totalXP: progress.totalXP,
+      level: progress.currentLevel,
+      currentStreak: progress.currentStreak
+    })).filter(entry => entry.userId !== null); // Filter out entries with no user data
+
+    res.status(200).json({
+      leaderboard,
+      totalUsers: leaderboard.length,
+      currentUserRank: null // Will be calculated if needed
+    });
   } catch (error) {
     console.error("Error fetching leaderboard:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -428,8 +514,25 @@ export const getLeaderboard = async (req, res) => {
 // Get subscription status (mock for now)
 export const getSubscriptionStatus = async (req, res) => {
   try {
+    // Check if user is authenticated
+    if (!req.user) {
+      return res.status(200).json({
+        isPremium: false,
+        plan: "free",
+        expiresAt: null,
+        features: {
+          dailyChallenges: true,
+          vocabulary: true,
+          videos: true,
+          conversations: true,
+          maxVideosPerDay: 3,
+          maxConversationsPerDay: 1
+        }
+      });
+    }
+
     const userId = req.user._id;
-    
+
     // For now, return a mock subscription status
     // You can implement real subscription logic later
     res.status(200).json({

@@ -10,6 +10,7 @@ import {
     deletePost,
     sharePost
 } from "../controllers/post.controller.js";
+import { validateCreatePost, validatePostId, validateComment } from "../validators/post.validator.js";
 
 const router = express.Router();
 
@@ -31,8 +32,8 @@ router.get("/user/:userId", getUserPosts);
 router.delete("/:postId", deletePost);
 
 // Post interactions
-router.post("/:postId/like", toggleLikePost);
-router.post("/:postId/comment", commentOnPost);
-router.post("/:postId/share", sharePost);
+router.post("/:postId/like", validatePostId, toggleLikePost);
+router.post("/:postId/comment", validatePostId, validateComment, commentOnPost);
+router.post("/:postId/share", validatePostId, sharePost);
 
 export default router;

@@ -12,11 +12,20 @@ import OnboardingPage from "./pages/OnBoardingPage.jsx";
 import EnhancedLanguageJourneyPage from "./pages/EnhancedLanguageJourneyPage.jsx";
 import AITutorPage from "./pages/AITutorPage.jsx";
 import ConversationPracticePage from "./pages/ConversationPracticePage.jsx";
+import PricingPage from "./pages/PricingPage.jsx";
+import CheckoutPage from "./pages/CheckoutPage.jsx";
+import SubscriptionPage from "./pages/SubscriptionPage.jsx";
+import AchievementsPage from "./pages/AchievementsPage.jsx";
+import LeaderboardPage from "./pages/LeaderboardPage.jsx";
+import ReferralPage from "./pages/ReferralPage.jsx";
+import AdminDashboardPage from "./pages/AdminDashboardPage.jsx";
 import { Toaster } from "react-hot-toast";
 import PageLoader from "./components/PageLoader.jsx";
 import useAuthUser from "./hooks/useAuthUser.js";
 import Layout from "./components/Layout.jsx";
 import { useThemeStore } from "./store/useThemeStore.js";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import RouteErrorBoundary from "./components/RouteErrorBoundary.jsx";
 
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
@@ -28,20 +37,21 @@ const App = () => {
   if (isLoading) return <PageLoader />;
 
   return (
-    <div className="h-screen" data-theme={theme}>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <HomePage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
+    <ErrorBoundary>
+      <div className="h-screen" data-theme={theme}>
+        <Routes errorElement={<RouteErrorBoundary />}>
+          <Route
+            path="/"
+            element={
+              isAuthenticated && isOnboarded ? (
+                <Layout showSidebar={true}>
+                  <HomePage />
+                </Layout>
+              ) : (
+                <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+              )
+            }
+          />
         <Route
           path="/signup"
           element={
@@ -179,9 +189,92 @@ const App = () => {
             )
           }
         />
-      </Routes>
-      <Toaster />
-    </div>
+
+        {/* Monetization & Gamification Routes */}
+        <Route
+          path="/pricing"
+          element={<PricingPage />}
+        />
+
+        <Route
+          path="/checkout"
+          element={
+            isAuthenticated ? (
+              <CheckoutPage />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+
+        <Route
+          path="/subscription"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <SubscriptionPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+
+        <Route
+          path="/achievements"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <AchievementsPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+
+        <Route
+          path="/leaderboard"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <LeaderboardPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+
+        <Route
+          path="/referral"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <ReferralPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <AdminDashboardPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        </Routes>
+        <Toaster />
+      </div>
+    </ErrorBoundary>
   );
 };
 export default App;

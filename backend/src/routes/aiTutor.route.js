@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import AITutorSession from "../models/AITutorSession.js";
 import User from "../models/User.js";
@@ -263,9 +264,9 @@ router.post("/rate-session/:sessionId", protectRoute, async (req, res) => {
 router.get("/analytics", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const analytics = await AITutorSession.aggregate([
-      { $match: { userId: mongoose.Types.ObjectId(userId) } },
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
       {
         $group: {
           _id: "$sessionType",
@@ -275,10 +276,10 @@ router.get("/analytics", protectRoute, async (req, res) => {
         }
       }
     ]);
-    
+
     const totalSessions = await AITutorSession.countDocuments({ userId });
     const activeSessions = await AITutorSession.countDocuments({ userId, isActive: true });
-    
+
     res.json({
       success: true,
       analytics: {
@@ -288,7 +289,7 @@ router.get("/analytics", protectRoute, async (req, res) => {
         lastSessionDate: (await AITutorSession.findOne({ userId }).sort({ updatedAt: -1 }))?.updatedAt
       }
     });
-    
+
   } catch (error) {
     console.error("Error fetching AI tutor analytics:", error);
     res.status(500).json({ message: "Failed to fetch analytics" });

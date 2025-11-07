@@ -1,8 +1,41 @@
-
 import LearningProgress from '../models/LearningProgress.js';
 import User from '../models/User.js';
+import UserActivity from '../models/UserActivity.js';
 import PronunciationPhrase from '../models/PronunciationPhrase.js';
 import { seedPronunciationPhrases } from '../lib/seedPhrases.js';
+
+// Helper function to update XP and Coins in both LearningProgress and UserActivity
+const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
+  try {
+    let userActivity = await UserActivity.findOne({ user: userId });
+
+    if (!userActivity) {
+      userActivity = await UserActivity.create({
+        user: userId,
+        gamification: {
+          level: 1,
+          xp: xpAmount,
+          coins: coinsAmount
+        },
+        metrics: {},
+        streaks: {}
+      });
+    } else {
+      userActivity.gamification.xp = (userActivity.gamification.xp || 0) + xpAmount;
+      userActivity.gamification.coins = (userActivity.gamification.coins || 0) + coinsAmount;
+      const newLevel = Math.floor(userActivity.gamification.xp / 1000) + 1;
+      if (newLevel > userActivity.gamification.level) {
+        userActivity.gamification.level = newLevel;
+      }
+      await userActivity.save();
+    }
+
+    return userActivity;
+  } catch (error) {
+    console.error('Error updating user XP and Coins:', error);
+    throw error;
+  }
+};
 
 // Get user's learning progress
 export async function getLearningProgress(req, res) {
@@ -87,18 +120,23 @@ export async function completeLesson(req, res) {
       completedAt: new Date(),
       xpEarned
     });
-    
-    // Add XP and check for level up
+
+    // Add XP and Coins and check for level up
+    const coinsEarned = Math.round(xpEarned / 5);
     const xpResult = progress.addXP(xpEarned);
-    
+
     // Update streak
     progress.updateStreak();
-    
+
     await progress.save();
-    
+
+    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+    await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
+
     res.status(200).json({
       message: 'Lesson completed successfully',
       xpResult,
+      coinsEarned,
       progress
     });
   } catch (error) {
@@ -189,18 +227,23 @@ export async function completeDailyChallenge(req, res) {
     
     challenge.completed = true;
     challenge.completedAt = new Date();
-    
-    // Add XP
+
+    // Add XP and Coins
+    const coinsEarned = Math.round(challenge.xpEarned / 5);
     const xpResult = progress.addXP(challenge.xpEarned);
-    
+
     // Update streak
     progress.updateStreak();
-    
+
     await progress.save();
-    
+
+    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+    await updateUserXPAndCoins(userId, challenge.xpEarned, coinsEarned);
+
     res.status(200).json({
       message: 'Challenge completed successfully',
       xpResult,
+      coinsEarned,
       progress
     });
   } catch (error) {
@@ -276,12 +319,16 @@ export async function updateLearningPath(req, res) {
     } else {
       path.progress = progress || path.progress;
       path.completedModules = completedModules || path.completedModules;
-      
+
       if (path.progress >= 100 && !path.completedAt) {
         path.completedAt = new Date();
-        
-        // Award XP for completing path
+
+        // Award XP and Coins for completing path
         const xpResult = learningProgress.addXP(500);
+        const coinsEarned = 100; // Bonus coins for path completion
+
+        // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+        await updateUserXPAndCoins(userId, 500, coinsEarned);
       }
     }
     
@@ -331,16 +378,21 @@ export async function addVocabularyWord(req, res) {
     });
     
     progress.wordsLearned = progress.vocabulary.length;
-    
-    // Add XP for learning new word
+
+    // Add XP and Coins for learning new word
     const xpResult = progress.addXP(5);
-    
+    const coinsEarned = 1; // 1 coin per new word
+
     progress.updateStreak();
     await progress.save();
-    
+
+    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+    await updateUserXPAndCoins(userId, 5, coinsEarned);
+
     res.status(200).json({
       message: 'Word added to vocabulary',
       xpResult,
+      coinsEarned,
       progress
     });
   } catch (error) {
@@ -364,31 +416,39 @@ export async function recordPracticeSession(req, res) {
     // Update study time
     progress.totalStudyTime += duration || 5;
     
-    // Add XP based on practice type and score
+    // Add XP and Coins based on practice type and score
     let xpEarned = 0;
+    let coinsEarned = 0;
     if (type === 'pronunciation') {
       xpEarned = Math.round(score / 10);
+      coinsEarned = Math.round(score / 50);
     } else if (type === 'grammar') {
       xpEarned = Math.round(score / 5);
+      coinsEarned = Math.round(score / 25);
     } else if (type === 'conversation') {
       xpEarned = Math.round(score / 5);
+      coinsEarned = Math.round(score / 25);
     }
-    
+
     const xpResult = progress.addXP(xpEarned);
-    
+
     // Update streak
     progress.updateStreak();
-    
+
     // Track conversation if it's a speaking practice
     if (type === 'pronunciation' && details?.phrasesCompleted > 0) {
       progress.conversationsCompleted += 1;
     }
-    
+
     await progress.save();
-    
+
+    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+    await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
+
     res.status(200).json({
       message: 'Practice session recorded',
       xpResult,
+      coinsEarned,
       progress
     });
   } catch (error) {

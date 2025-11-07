@@ -6,3 +6,6 @@ export const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
 });
+
+// Default export for backward compatibility
+export default axiosInstance;

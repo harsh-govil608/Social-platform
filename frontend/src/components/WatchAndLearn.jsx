@@ -54,8 +54,17 @@ const WatchAndLearn = ({
           origin: { y: 0.6 }
         });
       }
+
+      // Invalidate all queries that display XP/progress data
       queryClient.invalidateQueries(["learningVideos"]);
       queryClient.invalidateQueries(["learningProgress"]);
+      queryClient.invalidateQueries(["activityDashboard"]);
+      queryClient.invalidateQueries(["weeklyStats"]);
+      queryClient.invalidateQueries(["monthlyStats"]);
+      queryClient.invalidateQueries(["weeklyLeaderboard"]);
+      queryClient.invalidateQueries(["achievements"]);
+      queryClient.invalidateQueries(["authUser"]); // Update user's total XP
+
       if (onVideoComplete) {
         onVideoComplete(data);
       }
@@ -269,7 +278,11 @@ const WatchAndLearn = ({
           <div className="flex justify-between items-start mb-4">
             <div>
               <h3 className="text-2xl font-bold">{selectedVideo.title}</h3>
-              <p className="text-sm opacity-70 mt-1">By {selectedVideo.instructor}</p>
+              <p className="text-sm opacity-70 mt-1">
+                By {typeof selectedVideo.instructor === 'object'
+                  ? (selectedVideo.instructor?.name || 'Unknown')
+                  : (selectedVideo.instructor || 'Unknown')}
+              </p>
             </div>
             <button 
               className="btn btn-sm btn-circle"
@@ -460,14 +473,16 @@ const WatchAndLearn = ({
                 <div className="flex items-center gap-4 mt-2 text-sm">
                   <div className="flex items-center gap-1">
                     <StarIcon className="w-4 h-4 text-warning fill-warning" />
-                    <span>{video.rating?.average || video.rating || 0}</span>
+                    <span>{typeof video.rating === 'object' ? (video.rating.average || 0).toFixed(1) : (video.rating || 0)}</span>
                   </div>
                   <span>{video.viewCount || video.views || 0} views</span>
                   <span className="font-bold text-primary">+{video.xpReward || video.xp || 0} XP</span>
                 </div>
 
                 <div className="text-sm opacity-70 mt-1">
-                  By {video.instructor?.name || video.instructor || 'Unknown'}
+                  By {typeof video.instructor === 'object'
+                    ? (video.instructor?.name || 'Unknown')
+                    : (video.instructor || 'Unknown')}
                 </div>
 
                 <div className="card-actions justify-end mt-4">

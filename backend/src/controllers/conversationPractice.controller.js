@@ -1,5 +1,39 @@
 import conversationAI from '../services/conversationAI.service.js';
 import LearningProgress from '../models/LearningProgress.js';
+import UserActivity from '../models/UserActivity.js';
+
+// Helper function to update XP and Coins in both LearningProgress and UserActivity
+const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
+  try {
+    let userActivity = await UserActivity.findOne({ user: userId });
+
+    if (!userActivity) {
+      userActivity = await UserActivity.create({
+        user: userId,
+        gamification: {
+          level: 1,
+          xp: xpAmount,
+          coins: coinsAmount
+        },
+        metrics: {},
+        streaks: {}
+      });
+    } else {
+      userActivity.gamification.xp = (userActivity.gamification.xp || 0) + xpAmount;
+      userActivity.gamification.coins = (userActivity.gamification.coins || 0) + coinsAmount;
+      const newLevel = Math.floor(userActivity.gamification.xp / 1000) + 1;
+      if (newLevel > userActivity.gamification.level) {
+        userActivity.gamification.level = newLevel;
+      }
+      await userActivity.save();
+    }
+
+    return userActivity;
+  } catch (error) {
+    console.error('Error updating user XP and Coins:', error);
+    throw error;
+  }
+};
 
 // Start a new conversation practice session
 export async function startConversation(req, res) {
@@ -80,38 +114,47 @@ export async function endConversation(req, res) {
     // Update conversation statistics
     progress.conversationsCompleted += 1;
     progress.totalStudyTime += Math.floor(summary.duration / 60); // Convert to minutes
-    
-    // Add XP based on performance
+
+    // Add XP and Coins based on performance
     const xpEarned = Math.floor(summary.averageScore * 1.5); // 1.5x multiplier for score
+    const coinsEarned = Math.floor(summary.averageScore * 0.3); // 0.3x multiplier for coins
     const xpResult = progress.addXP(xpEarned);
-    
+
+    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+    await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
+
     // Check if this completes a daily challenge
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const todaysChallenge = progress.dailyChallenges.find(challenge => {
       const challengeDate = new Date(challenge.date);
       challengeDate.setHours(0, 0, 0, 0);
-      return challengeDate.getTime() === today.getTime() && 
-             challenge.challengeId === 'chat-5min' && 
+      return challengeDate.getTime() === today.getTime() &&
+             challenge.challengeId === 'chat-5min' &&
              !challenge.completed;
     });
-    
+
     if (todaysChallenge && summary.duration >= 300) { // 5 minutes = 300 seconds
       todaysChallenge.completed = true;
       todaysChallenge.completedAt = new Date();
+      const challengeCoins = Math.round(todaysChallenge.xpEarned / 5);
       progress.addXP(todaysChallenge.xpEarned);
+
+      // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+      await updateUserXPAndCoins(userId, todaysChallenge.xpEarned, challengeCoins);
     }
-    
+
     // Update streak
     progress.updateStreak();
-    
+
     await progress.save();
     
     res.status(200).json({
       success: true,
       summary,
       xpEarned,
+      coinsEarned,
       xpResult,
       challengeCompleted: todaysChallenge?.completed || false
     });

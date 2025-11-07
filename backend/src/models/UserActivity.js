@@ -1,11 +1,62 @@
 import mongoose from 'mongoose';
 
 const userActivitySchema = new mongoose.Schema({
-  userId: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
     unique: true
+  },
+  // Gamification data
+  gamification: {
+    level: {
+      type: Number,
+      default: 1
+    },
+    xp: {
+      type: Number,
+      default: 0
+    },
+    coins: {
+      type: Number,
+      default: 0
+    }
+  },
+  // Achievements
+  achievements: [{
+    achievement: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Achievement'
+    },
+    unlockedAt: {
+      type: Date,
+      default: Date.now
+    },
+    progress: {
+      type: Number,
+      default: 0
+    }
+  }],
+  // Metrics for achievement tracking
+  metrics: {
+    aiTutorSessions: { type: Number, default: 0 },
+    dsaProblemsCompleted: { type: Number, default: 0 },
+    friendsCount: { type: Number, default: 0 },
+    conversationPractices: { type: Number, default: 0 },
+    referralsCompleted: { type: Number, default: 0 },
+    postsCreated: { type: Number, default: 0 },
+    messagessSent: { type: Number, default: 0 },
+    videosWatched: { type: Number, default: 0 },
+    codeSubmissions: { type: Number, default: 0 },
+    wordsLearned: { type: Number, default: 0 },
+    storiesWritten: { type: Number, default: 0 }
+  },
+  // Streaks for achievements
+  streaks: {
+    loginStreak: { type: Number, default: 0 },
+    loginStreakLastActivity: Date,
+    learningStreak: { type: Number, default: 0 },
+    learningStreakLastActivity: Date
   },
   dailySessions: [{
     date: {
@@ -55,11 +106,6 @@ const userActivitySchema = new mongoose.Schema({
       conversation_practice: Number,
       story_writing: Number
     },
-    achievements: [{
-      type: String,
-      description: String,
-      earnedAt: Date
-    }],
     totalXP: Number,
     totalCoins: Number
   }],
@@ -80,15 +126,6 @@ const userActivitySchema = new mongoose.Schema({
     currentActivity: String,
     isActive: Boolean
   },
-  achievements: [{
-    id: String,
-    name: String,
-    description: String,
-    icon: String,
-    earnedAt: Date,
-    xpReward: Number,
-    coinReward: Number
-  }],
   milestones: {
     firstStory: Date,
     first10Stories: Date,
@@ -206,9 +243,11 @@ userActivitySchema.methods.calculateWeeklyStats = function() {
 };
 
 // Index for queries
-userActivitySchema.index({ userId: 1 });
+userActivitySchema.index({ user: 1 });
 userActivitySchema.index({ 'dailySessions.date': -1 });
 userActivitySchema.index({ 'currentSession.isActive': 1 });
+userActivitySchema.index({ 'gamification.xp': -1 });
+userActivitySchema.index({ 'gamification.level': -1 });
 
 const UserActivity = mongoose.model('UserActivity', userActivitySchema);
 export default UserActivity;

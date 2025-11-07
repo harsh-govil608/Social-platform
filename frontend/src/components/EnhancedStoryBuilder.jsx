@@ -104,17 +104,26 @@ const EnhancedStoryBuilder = ({ language = 'english', userLevel = 1 }) => {
     onSuccess: (data) => {
       setAiRating(data.story.aiRating);
       setCurrentStep('result');
+
+      // Invalidate all queries that display XP/progress data
       queryClient.invalidateQueries(['myStories']);
-      
+      queryClient.invalidateQueries(['activityDashboard']);
+      queryClient.invalidateQueries(['weeklyStats']);
+      queryClient.invalidateQueries(['monthlyStats']);
+      queryClient.invalidateQueries(['weeklyLeaderboard']);
+      queryClient.invalidateQueries(['achievements']);
+      queryClient.invalidateQueries(['learningProgress']);
+      queryClient.invalidateQueries(['authUser']); // Update user's total XP
+
       // Celebrate with confetti
       confetti({
         particleCount: 100,
         spread: 70,
         origin: { y: 0.6 }
       });
-      
+
       toast.success(`Story submitted! Earned ${data.rewards.xp} XP and ${data.rewards.coins} coins!`);
-      
+
       // Log activity
       logActivity('story_writing', {
         storyId: data.story._id,
@@ -132,7 +141,17 @@ const EnhancedStoryBuilder = ({ language = 'english', userLevel = 1 }) => {
     mutationFn: ({ storyId, score, feedback }) => rateStory(storyId, { score, feedback }),
     onSuccess: (data) => {
       toast.success('Rating submitted! Earned 5 XP');
+
+      // Invalidate all queries that display XP/progress data
       queryClient.invalidateQueries(['publicStories']);
+      queryClient.invalidateQueries(['activityDashboard']);
+      queryClient.invalidateQueries(['weeklyStats']);
+      queryClient.invalidateQueries(['monthlyStats']);
+      queryClient.invalidateQueries(['weeklyLeaderboard']);
+      queryClient.invalidateQueries(['achievements']);
+      queryClient.invalidateQueries(['learningProgress']);
+      queryClient.invalidateQueries(['authUser']); // Update user's total XP
+
       setSelectedStoryForReview(null);
       setReviewScore(5);
       setReviewFeedback('');

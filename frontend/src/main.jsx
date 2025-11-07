@@ -5,6 +5,10 @@ import './index.css'
 import App from './App.jsx'
 import { BrowserRouter } from 'react-router'
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { initSentry } from './lib/sentry.js';
+
+// Initialize Sentry
+initSentry();
 
 const queryClient = new QueryClient({
   defaultOptions: {

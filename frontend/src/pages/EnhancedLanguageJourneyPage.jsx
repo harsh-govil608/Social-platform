@@ -336,7 +336,7 @@ const EnhancedLanguageJourneyPage = () => {
             <div className="badge badge-primary">Top 10</div>
           </div>
           <div className="space-y-3">
-            {leaderboardData ? (
+            {leaderboardData?.leaderboard?.length > 0 ? (
               <>
                 {leaderboardData.leaderboard.map((user) => {
                   const medals = ['🥇', '🥈', '🥉'];

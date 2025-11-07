@@ -23,6 +23,9 @@ import toast from "react-hot-toast";
 import confetti from 'canvas-confetti';
 import DifficultySelector from './DifficultySelector';
 import EnhancedStoryBuilder from './EnhancedStoryBuilder';
+import VocabularyChallenge from './VocabularyChallenge';
+import GrammarChallenge from './GrammarChallenge';
+import ConversationChallenge from './ConversationChallenge';
 import { getDailyChallenges, completeDailyChallenge } from "../lib/learningApi";
 
 const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
@@ -60,9 +63,23 @@ const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
   const completeChallengeMutation = useMutation({
     mutationFn: completeDailyChallenge,
     onSuccess: (data) => {
-      toast.success(`Challenge completed! +${data.xpEarned} XP`);
+      toast.success(
+        <div>
+          <p className="font-bold">Challenge Completed!</p>
+          <p>+{data.xpEarned} XP | +{data.coinsEarned} Coins</p>
+        </div>
+      );
+
+      // Invalidate all queries that display XP/progress data
       queryClient.invalidateQueries(["dailyChallenges"]);
       queryClient.invalidateQueries(["learningProgress"]);
+      queryClient.invalidateQueries(["activityDashboard"]);
+      queryClient.invalidateQueries(["weeklyStats"]);
+      queryClient.invalidateQueries(["monthlyStats"]);
+      queryClient.invalidateQueries(["weeklyLeaderboard"]);
+      queryClient.invalidateQueries(["achievements"]);
+      queryClient.invalidateQueries(["authUser"]); // Update user's total XP
+
       if (onChallengeComplete) {
         onChallengeComplete(data);
       }
@@ -73,7 +90,12 @@ const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
   });
   
   // Use challenges from MongoDB or empty array while loading
-  const challenges = challengesFromDB || [];
+  // Deduplicate challenges by _id to prevent duplicate key errors
+  const challenges = challengesFromDB
+    ? challengesFromDB.filter((challenge, index, self) =>
+        index === self.findIndex((c) => (c._id || c.id) === (challenge._id || challenge.id))
+      )
+    : [];
 
   // Quiz Challenge Component
   const QuizChallenge = ({ challenge, onComplete }) => {
@@ -700,40 +722,30 @@ const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
   };
 
   const handleChallengeComplete = (result) => {
-    const challenge = challenges.find(c => c.id === activeChallenge);
-    
+    const challenge = challenges.find(c => (c._id === activeChallenge || c.id === activeChallenge));
+
+    if (!challenge) {
+      console.error('Challenge not found:', activeChallenge);
+      setActiveChallenge(null);
+      return;
+    }
+
     if (result.completed) {
-      const earnedXP = Math.floor((result.score / 100) * challenge.xp);
-      const earnedCoins = Math.floor((result.score / 100) * challenge.coins);
-      
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-
-      toast.success(
-        <div>
-          <p className="font-bold">Challenge Complete!</p>
-          <p>+{earnedXP} XP | +{earnedCoins} Coins</p>
-        </div>,
-        { duration: 5000 }
-      );
-
-      onChallengeComplete?.({
-        challengeId: challenge.id,
-        xp: earnedXP,
-        coins: earnedCoins,
-        score: result.score
+      // Call the backend mutation to save the completion
+      completeChallengeMutation.mutate({
+        challengeId: challenge._id || challenge.id,
+        score: result.score || 100,
+        timeSpent: challenge.requirements?.timeLimit || 5
       });
 
       setStreak(streak + 1);
     }
 
+    // Update local state
     setActiveChallenge(null);
     setChallengeState({
       ...challengeState,
-      [challenge.id]: { completed: true, score: result.score }
+      [challenge._id || challenge.id]: { completed: true, score: result.score }
     });
   };
 
@@ -776,8 +788,13 @@ const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
                 case 'quiz':
                   return <QuizChallenge challenge={currentChallenge} onComplete={handleChallengeComplete} />;
                 case 'vocabulary':
+                  return <VocabularyChallenge challenge={currentChallenge} onComplete={handleChallengeComplete} />;
                 case 'matching':
                   return <WordMatchChallenge challenge={currentChallenge} onComplete={handleChallengeComplete} />;
+                case 'grammar':
+                  return <GrammarChallenge challenge={currentChallenge} onComplete={handleChallengeComplete} />;
+                case 'conversation':
+                  return <ConversationChallenge challenge={currentChallenge} onComplete={handleChallengeComplete} />;
                 case 'pronunciation':
                   return <PronunciationChallenge challenge={currentChallenge} onComplete={handleChallengeComplete} />;
                 case 'creative':
@@ -786,8 +803,6 @@ const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
                 case 'video':
                 case 'listening':
                   return <VideoComprehensionChallenge challenge={currentChallenge} onComplete={handleChallengeComplete} />;
-                case 'grammar':
-                  return <QuizChallenge challenge={currentChallenge} onComplete={handleChallengeComplete} />;
                 default:
                   return <QuizChallenge challenge={currentChallenge} onComplete={handleChallengeComplete} />;
               }
@@ -816,7 +831,8 @@ const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
         ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {challenges.map(challenge => {
-            const isCompleted = challengeState[challenge.id || challenge._id]?.completed;
+            const challengeKey = challenge._id || challenge.id;
+            const isCompleted = challengeState[challengeKey]?.completed;
             const challengeIcon = challenge.type === 'pronunciation' ? <MicIcon className="w-8 h-8" /> :
                                  challenge.type === 'vocabulary' ? <BookOpenIcon className="w-8 h-8" /> :
                                  challenge.type === 'grammar' ? <BrainIcon className="w-8 h-8" /> :
@@ -825,8 +841,8 @@ const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
                                  challenge.type === 'conversation' ? <VideoIcon className="w-8 h-8" /> :
                                  <ZapIcon className="w-8 h-8" />;
             return (
-              <div 
-                key={challenge._id || challenge.id}
+              <div
+                key={challengeKey}
                 className={`card ${isCompleted ? 'bg-success/10 border-success' : 'bg-base-100'} shadow-xl border-2 hover:shadow-2xl transition-all`}
               >
                 <div className="card-body">
@@ -868,12 +884,12 @@ const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
                   <div className="card-actions justify-end mt-4">
                     {isCompleted ? (
                       <div className="text-sm text-success font-semibold">
-                        Score: {challengeState[challenge.id].score}
+                        Score: {challengeState[challengeKey]?.score || 100}
                       </div>
                     ) : (
-                      <button 
+                      <button
                         className="btn btn-sm btn-primary"
-                        onClick={() => setActiveChallenge(challenge._id || challenge.id)}
+                        onClick={() => setActiveChallenge(challengeKey)}
                       >
                         Start Challenge
                       </button>

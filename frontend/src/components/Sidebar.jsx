@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router';
-import { Home as HomeIcon, Users as UsersIcon, Bell as BellIcon, Zap as SheepWheelIcon, BookOpenIcon, Brain } from 'lucide-react';
+import { Home as HomeIcon, Users as UsersIcon, Bell as BellIcon, Zap as SheepWheelIcon, BookOpenIcon, Brain, Trophy, TrendingUp, Share2, Crown, DollarSign } from 'lucide-react';
 import useAuthUser from '../hooks/useAuthUser';
 const Sidebar = () => { 
     const {authUser} = useAuthUser();
@@ -40,6 +40,37 @@ const Sidebar = () => {
                     currentPath === "/ai-tutor" ? "btn-active": ""}`}>
                     <Brain className="size-5 text-base-content opacity-70"/>
                     <span>AI Mentor</span>
+                </Link>
+
+                <div className="divider text-xs opacity-50">REWARDS & PROGRESS</div>
+
+                <Link to="/achievements" className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                    currentPath === "/achievements" ? "btn-active": ""}`}>
+                    <Trophy className="size-5 text-base-content opacity-70"/>
+                    <span>Achievements</span>
+                </Link>
+                <Link to="/leaderboard" className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                    currentPath === "/leaderboard" ? "btn-active": ""}`}>
+                    <TrendingUp className="size-5 text-base-content opacity-70"/>
+                    <span>Leaderboard</span>
+                </Link>
+                <Link to="/referral" className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                    currentPath === "/referral" ? "btn-active": ""}`}>
+                    <Share2 className="size-5 text-base-content opacity-70"/>
+                    <span>Referral</span>
+                </Link>
+
+                <div className="divider text-xs opacity-50">SUBSCRIPTION</div>
+
+                <Link to="/subscription" className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                    currentPath === "/subscription" ? "btn-active": ""}`}>
+                    <Crown className="size-5 text-base-content opacity-70"/>
+                    <span>My Plan</span>
+                </Link>
+                <Link to="/pricing" className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                    currentPath === "/pricing" ? "btn-active": ""}`}>
+                    <DollarSign className="size-5 text-base-content opacity-70"/>
+                    <span>Pricing</span>
                 </Link>
             </nav>
             {/*USER PROFILE SECTION*/}

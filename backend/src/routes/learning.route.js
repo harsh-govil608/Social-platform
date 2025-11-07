@@ -1,4 +1,5 @@
 import express from "express";
+import { protectRoute } from "../middleware/auth.middleware.js";
 import {
   getLearningProgress,
   getDailyChallenges,
@@ -16,33 +17,30 @@ import {
 
 const router = express.Router();
 
-// TEMPORARILY REMOVED AUTHENTICATION FOR TESTING
-// Add protectRoute back to all routes when authentication is working
-
 // Learning Progress
-router.get("/progress", getLearningProgress);
+router.get("/progress", protectRoute, getLearningProgress);
 
 // Daily Challenges
-router.get("/challenges/daily", getDailyChallenges);
-router.post("/challenges/complete", completeDailyChallenge);
+router.get("/challenges/daily", protectRoute, getDailyChallenges);
+router.post("/challenges/complete", protectRoute, completeDailyChallenge);
 
 // Vocabulary
-router.get("/vocabulary/daily", getDailyVocabulary);
-router.post("/vocabulary/master", masterVocabulary);
+router.get("/vocabulary/daily", protectRoute, getDailyVocabulary);
+router.post("/vocabulary/master", protectRoute, masterVocabulary);
 
 // Videos
-router.get("/videos", getLearningVideos);
-router.post("/videos/complete", completeVideo);
+router.get("/videos", protectRoute, getLearningVideos);
+router.post("/videos/complete", protectRoute, completeVideo);
 
 // Stats
-router.get("/stats", getLearningStats);
-router.get("/stats/weekly", getWeeklyStats);
+router.get("/stats", protectRoute, getLearningStats);
+router.get("/stats/weekly", protectRoute, getWeeklyStats);
 
 // Leaderboard
-router.get("/leaderboard", getLeaderboard);
+router.get("/leaderboard", protectRoute, getLeaderboard);
 
 // Subscription
-router.get("/subscription/status", getSubscriptionStatus);
-router.post("/subscription/upgrade", upgradeSubscription);
+router.get("/subscription/status", protectRoute, getSubscriptionStatus);
+router.post("/subscription/upgrade", protectRoute, upgradeSubscription);
 
 export default router;
