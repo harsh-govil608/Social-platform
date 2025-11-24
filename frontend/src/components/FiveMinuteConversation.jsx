@@ -51,18 +51,6 @@ const FiveMinuteConversation = ({
   const scenarios = {
     beginner: [
       {
-        id: 'at-the-cafe',
-        title: 'At the Café',
-        icon: '☕',
-        description: 'Order coffee and have a casual chat',
-        context: 'You are at a local café and want to order your favorite drink',
-        aiPersona: 'Friendly barista',
-        suggestedPhrases: ['I would like...', 'How much is...', 'Thank you'],
-        bonusObjectives: ['Use polite phrases', 'Ask about the weather', 'Order 2 items'],
-        xpReward: 100,
-        coinsReward: 20
-      },
-      {
         id: 'travel-planning',
         title: 'Travel Planning',
         icon: '✈️',
@@ -73,34 +61,9 @@ const FiveMinuteConversation = ({
         bonusObjectives: ['Ask about distance', 'Confirm directions', 'Thank the person'],
         xpReward: 100,
         coinsReward: 20
-      },
-      {
-        id: 'shopping-adventure',
-        title: 'Shopping Adventure',
-        icon: '🛍️',
-        description: 'Get fashion advice from an enthusiastic boutique assistant',
-        context: 'You are shopping for the perfect outfit',
-        aiPersona: 'Maya - Fashion enthusiast',
-        suggestedPhrases: ['Do you have...', 'What size...', 'Can I try...'],
-        bonusObjectives: ['Ask for different color', 'Negotiate price', 'Ask about return policy'],
-        xpReward: 100,
-        coinsReward: 20
       }
     ],
     intermediate: [
-      {
-        id: 'at-the-restaurant',
-        title: 'Fine Dining',
-        icon: '🍽️',
-        description: 'Make reservations and order a full meal',
-        context: 'You are at an upscale restaurant for a special occasion',
-        aiPersona: 'Professional waiter',
-        suggestedPhrases: ['I have a reservation...', 'What do you recommend?', 'Could you explain...'],
-        bonusObjectives: ['Ask about ingredients', 'Order wine', 'Request the bill politely'],
-        xpReward: 150,
-        coinsReward: 30,
-        premium: false
-      },
       {
         id: 'medical-appointment',
         title: 'Medical Visit',
@@ -153,45 +116,6 @@ const FiveMinuteConversation = ({
         bonusObjectives: ['Describe the problem', 'Follow instructions', 'Confirm it is fixed'],
         xpReward: 200,
         coinsReward: 40,
-        premium: false
-      },
-      {
-        id: 'gym-trainer',
-        title: 'Personal Training',
-        icon: '💪',
-        description: 'Work out with an energetic personal trainer',
-        context: 'You\'re at the gym for a training session',
-        aiPersona: 'Marcus - Fitness motivator',
-        suggestedPhrases: ['I want to...', 'This is hard...', 'How many more...'],
-        bonusObjectives: ['Express your goals', 'Ask for advice', 'Stay motivated'],
-        xpReward: 250,
-        coinsReward: 50,
-        premium: false
-      },
-      {
-        id: 'cooking-class',
-        title: 'Italian Cooking',
-        icon: '👨‍🍳',
-        description: 'Learn authentic Italian cooking',
-        context: 'You\'re in Chef Isabella\'s kitchen',
-        aiPersona: 'Chef Isabella',
-        suggestedPhrases: ['How do I...', 'Mine doesn\'t look right...', 'What if I don\'t have...'],
-        bonusObjectives: ['Ask about techniques', 'Follow the recipe', 'Taste and adjust'],
-        xpReward: 300,
-        coinsReward: 60,
-        premium: false
-      },
-      {
-        id: 'real-estate',
-        title: 'House Hunting',
-        icon: '🏠',
-        description: 'Tour properties with a real estate agent',
-        context: 'You\'re looking for your dream home',
-        aiPersona: 'David Kim - Honest realtor',
-        suggestedPhrases: ['How much is...', 'What about the...', 'Can we negotiate...'],
-        bonusObjectives: ['Ask about details', 'Express preferences', 'Negotiate price'],
-        xpReward: 300,
-        coinsReward: 60,
         premium: false
       }
     ]
