@@ -7,6 +7,11 @@ import { seedPronunciationPhrases } from '../lib/seedPhrases.js';
 // Helper function to update XP and Coins in both LearningProgress and UserActivity
 const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
   try {
+    if (!userId) {
+      console.warn('updateUserXPAndCoins called with null userId, skipping');
+      return null;
+    }
+
     let userActivity = await UserActivity.findOne({ user: userId });
 
     if (!userActivity) {
@@ -33,7 +38,8 @@ const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
     return userActivity;
   } catch (error) {
     console.error('Error updating user XP and Coins:', error);
-    throw error;
+    // Don't throw - XP/coins update is non-critical
+    return null;
   }
 };
 

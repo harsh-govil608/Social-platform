@@ -1,20 +1,4 @@
-import OpenAI from 'openai';
-
-// Initialize OpenAI with API key from environment
-let openai = null;
-
-try {
-  if (process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
-  } else {
-    console.warn('⚠️  OPENAI_API_KEY not found. AI conversations will use mock responses.');
-    console.warn('To enable real AI conversations, add OPENAI_API_KEY to your .env file');
-  }
-} catch (error) {
-  console.error('Failed to initialize OpenAI:', error);
-}
+import { generateAIResponse, isAIConfigured } from '../lib/ai.js';
 
 // Conversation scenarios with rich context for realistic AI responses
 const conversationScenarios = {
@@ -397,12 +381,174 @@ const conversationScenarios = {
   }
 };
 
+// Helper class for AI tutor suggestions and tips
+class AITutorHelpers {
+  // Generate dynamic suggestions based on session type and message content
+  static generateSuggestions(sessionType, userMessage, userLevel) {
+    const lowerMessage = userMessage.toLowerCase();
+
+    if (sessionType === 'language_help') {
+      if (lowerMessage.includes('grammar')) {
+        return ['Verb conjugations', 'Sentence structure', 'Tenses', 'Common mistakes'];
+      }
+      if (lowerMessage.includes('pronunciation')) {
+        return ['Phonetic exercises', 'Practice phrases', 'Audio resources', 'Tongue twisters'];
+      }
+      if (lowerMessage.includes('vocabulary')) {
+        return ['Word lists', 'Flashcards', 'Spaced repetition', 'Usage examples'];
+      }
+      return ['Grammar help', 'Vocabulary building', 'Conversation practice', 'Cultural tips'];
+    }
+
+    if (sessionType === 'coding_help') {
+      if (lowerMessage.includes('algorithm') || lowerMessage.includes('data structure')) {
+        return ['Time complexity', 'Space complexity', 'Implementation tips', 'Practice problems'];
+      }
+      if (lowerMessage.includes('debug') || lowerMessage.includes('error')) {
+        return ['Common errors', 'Debugging strategies', 'Testing approaches', 'Best practices'];
+      }
+      return ['Algorithm help', 'Code review', 'Best practices', 'Similar problems'];
+    }
+
+    if (sessionType === 'career_guidance') {
+      return ['Skill assessment', 'Job market insights', 'Portfolio building', 'Interview prep'];
+    }
+
+    return ['Language help', 'Coding assistance', 'Career guidance', 'Study tips'];
+  }
+
+  // Generate contextual tips based on user level and struggling areas
+  static generateContextualTips(userLevel, strugglingAreas = []) {
+    const tips = [];
+
+    if (strugglingAreas.includes('grammar')) {
+      tips.push("💡 Try explaining grammar rules in your own words - teaching helps learning!");
+    }
+
+    if (strugglingAreas.includes('algorithms')) {
+      tips.push("🧠 Draw diagrams to visualize algorithm steps - it really helps!");
+    }
+
+    if (strugglingAreas.includes('pronunciation')) {
+      tips.push("🗣️ Record yourself and compare with native speakers - you'll hear the difference!");
+    }
+
+    if (userLevel === 'beginner') {
+      tips.push("🌱 Focus on consistency over intensity - 20 minutes daily beats 3 hours once a week!");
+    }
+
+    if (userLevel === 'intermediate') {
+      tips.push("📈 You're past the hardest part! Now focus on depth over breadth.");
+    }
+
+    if (userLevel === 'advanced') {
+      tips.push("🎯 Challenge yourself with real-world projects - that's where true mastery comes!");
+    }
+
+    return tips.length > 0 ? tips : ["💪 Keep up the great work! Learning is a journey, not a destination."];
+  }
+
+  // Build system prompt based on session type for tutor mode
+  static buildTutorSystemPrompt(sessionType, context) {
+    const { userLanguages = {}, userLevel = 'beginner', strugglingAreas = [] } = context;
+
+    if (sessionType === 'language_help') {
+      return `You are an expert language tutor helping a ${userLevel} level student learn ${userLanguages.learning || 'English'} (their native language is ${userLanguages.native || 'English'}).
+
+Your teaching style:
+- Break down complex grammar into simple explanations
+- Use examples from their native language when helpful
+- Be encouraging and patient
+- Provide actionable practice suggestions
+- Keep responses concise (2-3 paragraphs max)
+
+${strugglingAreas.length > 0 ? `The student struggles with: ${strugglingAreas.join(', ')}` : ''}`;
+    }
+
+    if (sessionType === 'coding_help') {
+      return `You are a patient programming mentor helping a ${userLevel} level developer.
+
+Your teaching approach:
+- Explain concepts step-by-step
+- Use simple analogies when explaining algorithms
+- Provide code examples when relevant
+- Ask clarifying questions before diving deep
+- Keep responses focused (2-3 paragraphs)
+
+${strugglingAreas.length > 0 ? `Areas the student finds challenging: ${strugglingAreas.join(', ')}` : ''}`;
+    }
+
+    if (sessionType === 'career_guidance') {
+      return `You are a tech career advisor with expertise in global job markets. The student knows ${userLanguages.native || 'English'} and is learning ${userLanguages.learning || 'a new language'}, which gives them unique advantages.
+
+Your guidance style:
+- Provide practical, actionable career advice
+- Highlight opportunities that match their language skills
+- Be realistic but encouraging
+- Keep advice concise and specific`;
+    }
+
+    return `You are a friendly AI learning mentor. You help students with:
+- Language learning (grammar, pronunciation, conversation)
+- Programming and algorithms
+- Career planning in tech
+- Study strategies and motivation
+
+Be conversational, supportive, and concise in your responses.`;
+  }
+
+  // Detect session type from user message
+  static detectSessionType(userMessage) {
+    const lowerMessage = userMessage.toLowerCase();
+
+    if (lowerMessage.includes('grammar') || lowerMessage.includes('pronunciation') ||
+        lowerMessage.includes('vocabulary') || lowerMessage.includes('language') ||
+        lowerMessage.includes('speak') || lowerMessage.includes('translate')) {
+      return 'language_help';
+    }
+
+    if (lowerMessage.includes('code') || lowerMessage.includes('programming') ||
+        lowerMessage.includes('algorithm') || lowerMessage.includes('debug') ||
+        lowerMessage.includes('function') || lowerMessage.includes('error')) {
+      return 'coding_help';
+    }
+
+    if (lowerMessage.includes('career') || lowerMessage.includes('job') ||
+        lowerMessage.includes('interview') || lowerMessage.includes('resume') ||
+        lowerMessage.includes('portfolio')) {
+      return 'career_guidance';
+    }
+
+    return 'general';
+  }
+}
+
 export class ConversationAIService {
   constructor() {
     // Store active conversations in memory (in production, use Redis or database)
     this.conversations = new Map();
   }
-  
+
+  // Get tutor suggestions based on message and session type
+  getTutorSuggestions(sessionType, userMessage, userLevel) {
+    return AITutorHelpers.generateSuggestions(sessionType, userMessage, userLevel);
+  }
+
+  // Get contextual tips for the user
+  getTutorTips(userLevel, strugglingAreas) {
+    return AITutorHelpers.generateContextualTips(userLevel, strugglingAreas);
+  }
+
+  // Get tutor system prompt for a session type
+  getTutorSystemPrompt(sessionType, context) {
+    return AITutorHelpers.buildTutorSystemPrompt(sessionType, context);
+  }
+
+  // Detect what type of help the user needs
+  detectHelpType(userMessage) {
+    return AITutorHelpers.detectSessionType(userMessage);
+  }
+
   // Start a new conversation scenario
   async startConversation(userId, scenario = 'at-the-cafe', userLanguageLevel = 'intermediate') {
     const scenarioData = conversationScenarios[scenario] || conversationScenarios['at-the-cafe'];
@@ -429,24 +575,22 @@ export class ConversationAIService {
     
     // Get initial AI greeting
     try {
-      if (!openai) {
-        throw new Error('OpenAI not configured');
+      if (!isAIConfigured()) {
+        throw new Error('AI not configured');
       }
-      
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
-        messages: conversation.messages,
+
+      const aiMessage = await generateAIResponse({
+        systemPrompt: scenarioData.systemPrompt + `\n\nThe user is at ${userLanguageLevel} level English. Adjust your language complexity accordingly.`,
+        userMessage: 'Please greet me to start our conversation.',
         temperature: 0.8,
-        max_tokens: 100
+        maxTokens: 100
       });
-      
-      const aiMessage = completion.choices[0].message.content;
-      
+
       conversation.messages.push({
         role: 'assistant',
         content: aiMessage
       });
-      
+
       return {
         message: aiMessage,
         suggestions: this.getContextualSuggestions(scenario, 'greeting'),
@@ -454,7 +598,7 @@ export class ConversationAIService {
         scenario: scenario
       };
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      console.error('AI API error:', error);
       // Fallback to predefined message if API fails
       return {
         message: scenarioData.initialMessage,
@@ -484,59 +628,63 @@ export class ConversationAIService {
     conversation.turnCount++;
     
     try {
-      // Check if OpenAI is available
-      if (!openai) {
-        // Use mock response if OpenAI is not configured
+      // Check if AI is available
+      console.log('🤖 Processing message, isAIConfigured:', isAIConfigured());
+
+      if (!isAIConfigured()) {
+        // Use mock response if AI is not configured
+        console.log('⚠️ AI not configured, using mock response');
         return this.getMockResponse(conversation, userMessage);
       }
-      
-      // Get AI response using OpenAI API
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
-        messages: conversation.messages,
+
+      console.log('✅ AI is configured, generating response...');
+      // Build conversation context from history
+      const scenarioData = conversationScenarios[conversation.scenario] || conversationScenarios['at-the-cafe'];
+      const recentMessages = conversation.messages.slice(-6); // Keep last 6 messages for context
+      const conversationContext = recentMessages
+        .filter(m => m.role !== 'system')
+        .map(m => `${m.role === 'user' ? 'Customer' : 'You'}: ${m.content}`)
+        .join('\n');
+
+      const systemPrompt = scenarioData.systemPrompt +
+        `\n\nThe user is at ${conversation.languageLevel} level English. Adjust your language complexity accordingly.`;
+
+      // Get AI response using Hugging Face
+      console.log('📤 Calling generateAIResponse...');
+      const fullResponse = await generateAIResponse({
+        systemPrompt,
+        userMessage: `Previous conversation:\n${conversationContext}\n\nCustomer: ${userMessage}\n\nRespond naturally as your character:`,
         temperature: 0.8,
-        max_tokens: 150,
-        stream: true // Enable streaming for real-time response
+        maxTokens: 150
       });
-      
-      // Collect streamed response
-      let fullResponse = '';
-      const chunks = [];
-      
-      for await (const chunk of completion) {
-        const content = chunk.choices[0]?.delta?.content || '';
-        fullResponse += content;
-        if (content) {
-          chunks.push(content);
-        }
-      }
-      
+      console.log('📥 AI Response received:', fullResponse?.substring(0, 100));
+
       // Add AI response to conversation history
       conversation.messages.push({
         role: 'assistant',
         content: fullResponse
       });
-      
+
       // Generate language feedback
       const feedback = await this.generateLanguageFeedback(userMessage, conversation.languageLevel);
-      
+
       // Update conversation score
       conversation.totalScore += feedback.score;
       conversation.feedback.push(feedback);
-      
+
       // Get contextual suggestions based on conversation stage
       const stage = this.getConversationStage(conversation.turnCount);
       const suggestions = this.getContextualSuggestions(conversation.scenario, stage);
-      
+
       return {
         message: fullResponse,
-        chunks: chunks,
+        chunks: [fullResponse],
         feedback: feedback,
         suggestions: suggestions,
         turnCount: conversation.turnCount,
         averageScore: Math.round(conversation.totalScore / conversation.turnCount)
       };
-      
+
     } catch (error) {
       console.error('Error processing message:', error);
       return {
@@ -550,44 +698,47 @@ export class ConversationAIService {
   // Generate detailed language feedback using AI
   async generateLanguageFeedback(userMessage, languageLevel) {
     try {
-      if (!openai) {
-        // Return mock feedback if OpenAI is not configured
+      if (!isAIConfigured()) {
+        // Return mock feedback if AI is not configured
         return this.getMockFeedback(userMessage, languageLevel);
       }
-      
+
       const feedbackPrompt = `Analyze this English sentence from a ${languageLevel} language learner and provide brief, constructive feedback:
-      
-      Sentence: "${userMessage}"
-      
-      Provide a JSON response with:
-      1. grammar_score (0-100)
-      2. vocabulary_score (0-100)
-      3. fluency_score (0-100)
-      4. corrections (array of specific corrections if needed)
-      5. positive_feedback (one encouraging comment)
-      6. improvement_tip (one specific tip for improvement)
-      
-      Keep feedback encouraging and appropriate for ${languageLevel} level.`;
-      
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert English language teacher providing constructive feedback. Always respond with valid JSON.'
-          },
-          {
-            role: 'user',
-            content: feedbackPrompt
-          }
-        ],
+
+Sentence: "${userMessage}"
+
+Respond ONLY with a valid JSON object (no other text) with these fields:
+- grammar_score: number 0-100
+- vocabulary_score: number 0-100
+- fluency_score: number 0-100
+- corrections: array of strings (specific corrections if needed, empty array if none)
+- positive_feedback: string (one encouraging comment)
+- improvement_tip: string (one specific tip for improvement)
+
+Keep feedback encouraging and appropriate for ${languageLevel} level.`;
+
+      const response = await generateAIResponse({
+        systemPrompt: 'You are an expert English language teacher. Always respond with ONLY valid JSON, no other text.',
+        userMessage: feedbackPrompt,
         temperature: 0.3,
-        max_tokens: 200,
-        response_format: { type: "json_object" }
+        maxTokens: 250
       });
-      
-      const feedback = JSON.parse(completion.choices[0].message.content);
-      
+
+      // Try to parse JSON from response
+      let feedback;
+      try {
+        // Try to extract JSON from the response (handle cases where model adds extra text)
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          feedback = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse feedback JSON:', parseError);
+        return this.getMockFeedback(userMessage, languageLevel);
+      }
+
       return {
         score: Math.round((feedback.grammar_score + feedback.vocabulary_score + feedback.fluency_score) / 3),
         grammarScore: feedback.grammar_score,
@@ -598,21 +749,12 @@ export class ConversationAIService {
         improvementTip: feedback.improvement_tip,
         timestamp: new Date()
       };
-      
+
     } catch (error) {
       console.error('Error generating feedback:', error);
-      
+
       // Fallback to basic feedback if AI fails
-      return {
-        score: 75,
-        grammarScore: 75,
-        vocabularyScore: 75,
-        fluencyScore: 75,
-        corrections: [],
-        positiveFeedback: "Good effort! Keep practicing.",
-        improvementTip: "Try to use more varied vocabulary.",
-        timestamp: new Date()
-      };
+      return this.getMockFeedback(userMessage, languageLevel);
     }
   }
   
@@ -628,42 +770,44 @@ export class ConversationAIService {
     
     // Generate conversation summary using AI
     try {
-      if (!openai) {
-        // Return basic summary if OpenAI is not configured
+      if (!isAIConfigured()) {
+        // Return basic summary if AI is not configured
         return this.getBasicSummary(conversation, duration);
       }
-      
+
       const summaryPrompt = `Summarize this language learning conversation and provide a performance report:
-      
-      Scenario: ${conversation.scenario}
-      Level: ${conversation.languageLevel}
-      Turns: ${conversation.turnCount}
-      
-      Provide a JSON response with:
-      1. overall_performance (brief summary)
-      2. strengths (array of 2-3 strengths observed)
-      3. areas_for_improvement (array of 2-3 areas to work on)
-      4. recommended_next_scenario (suggestion for next practice)`;
-      
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert English language teacher providing a lesson summary.'
-          },
-          {
-            role: 'user',
-            content: summaryPrompt
-          }
-        ],
+
+Scenario: ${conversation.scenario}
+Level: ${conversation.languageLevel}
+Turns: ${conversation.turnCount}
+
+Respond ONLY with a valid JSON object (no other text) with these fields:
+- overall_performance: string (brief summary)
+- strengths: array of 2-3 strings (strengths observed)
+- areas_for_improvement: array of 2-3 strings (areas to work on)
+- recommended_next_scenario: string (suggestion for next practice)`;
+
+      const response = await generateAIResponse({
+        systemPrompt: 'You are an expert English language teacher providing a lesson summary. Always respond with ONLY valid JSON, no other text.',
+        userMessage: summaryPrompt,
         temperature: 0.5,
-        max_tokens: 250,
-        response_format: { type: "json_object" }
+        maxTokens: 300
       });
-      
-      const aiSummary = JSON.parse(completion.choices[0].message.content);
-      
+
+      // Try to parse JSON from response
+      let aiSummary;
+      try {
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          aiSummary = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse summary JSON:', parseError);
+        return this.getBasicSummary(conversation, duration);
+      }
+
       const summary = {
         scenario: conversation.scenario,
         duration: duration,
@@ -677,28 +821,17 @@ export class ConversationAIService {
         areasForImprovement: aiSummary.areas_for_improvement,
         recommendedNextScenario: aiSummary.recommended_next_scenario
       };
-      
+
       // Clean up conversation
       this.conversations.delete(userId);
-      
+
       return summary;
-      
+
     } catch (error) {
       console.error('Error generating summary:', error);
-      
+
       // Basic summary if AI fails
-      const summary = {
-        scenario: conversation.scenario,
-        duration: duration,
-        turnCount: conversation.turnCount,
-        averageScore: conversation.turnCount > 0 ? Math.round(conversation.totalScore / conversation.turnCount) : 0,
-        startedAt: conversation.startedAt,
-        endedAt: new Date(),
-        feedback: conversation.feedback
-      };
-      
-      this.conversations.delete(userId);
-      return summary;
+      return this.getBasicSummary(conversation, duration);
     }
   }
   
@@ -851,5 +984,8 @@ export class ConversationAIService {
     return summary;
   }
 }
+
+// Export the helper class for use in other modules
+export { AITutorHelpers };
 
 export default new ConversationAIService();

@@ -118,6 +118,11 @@ export const csrfProtection = (req, res, next) => {
     return next();
   }
 
+  // Skip CSRF check in development
+  if (isDevelopment) {
+    return next();
+  }
+
   // In production, implement proper CSRF token validation
   // For now, just validate that requests have proper origin
   const origin = req.headers.origin || req.headers.referer;
@@ -128,10 +133,11 @@ export const csrfProtection = (req, res, next) => {
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:5175',
-      'http://localhost:5176'
+      'http://localhost:5176',
+      'http://localhost:5001' // Allow same-origin requests
     ].filter(Boolean);
 
-    const isAllowed = allowedOrigins.some(allowed => origin?.startsWith(allowed));
+    const isAllowed = !origin || allowedOrigins.some(allowed => origin?.startsWith(allowed));
 
     if (!isAllowed) {
       console.warn('Blocked request with suspicious origin:', origin);

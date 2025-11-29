@@ -37,6 +37,7 @@
     "nodemailer": "^7.0.6",
     "nodemon": "^3.1.10",
     "openai": "^5.16.0",
+    "social-platform": "file:..",
     "socket.io": "^4.8.1",
     "stream-chat": "^8.60.0",
     "stripe": "^19.0.0",

@@ -1,4 +1,5 @@
 import ConversationResponse from "../models/ConversationResponse.js";
+import { generateAIResponse, isAIConfigured } from './ai.js';
 
 // Response templates with variables for dynamic generation
 const responseTemplates = {
@@ -138,16 +139,61 @@ const responseComponents = {
 
 // Generate contextual response based on conversation history
 export const generateContextualResponse = async (topic, userMessage, conversationHistory, stage = "main") => {
-  // Extract keywords and context from user message
+  // Try to use AI if configured
+  if (isAIConfigured()) {
+    try {
+      // Build conversation context
+      const recentMessages = conversationHistory.slice(-6);
+      const conversationContext = recentMessages
+        .filter(m => m.role !== 'system')
+        .map(m => `${m.role === 'user' ? 'User' : 'You'}: ${m.content}`)
+        .join('\n');
+
+      const topicPersonalities = {
+        Travel: "You are an enthusiastic travel expert who loves sharing travel tips and experiences.",
+        Food: "You are a warm and passionate food enthusiast who enjoys discussing cuisines and cooking.",
+        Culture: "You are a respectful and curious cultural guide who loves exploring traditions.",
+        Business: "You are a professional and insightful business consultant.",
+        Sports: "You are an energetic sports enthusiast and fitness motivator.",
+        Music: "You are a creative and expressive music lover.",
+        Technology: "You are an analytical tech expert who stays updated on innovations.",
+        "Daily Life": "You are a friendly and relatable conversation partner."
+      };
+
+      const systemPrompt = `${topicPersonalities[topic] || topicPersonalities["Daily Life"]}
+
+You are having a natural conversation about ${topic}. Keep your responses:
+- Natural and conversational (2-3 sentences)
+- Engaging with follow-up questions when appropriate
+- Helpful and informative
+- Stage: ${stage} (adjust tone accordingly - greeting=welcoming, main=engaging, closing=wrapping up)`;
+
+      const aiResponse = await generateAIResponse({
+        systemPrompt,
+        userMessage: conversationContext
+          ? `Previous conversation:\n${conversationContext}\n\nUser: ${userMessage || 'Start the conversation'}\n\nRespond naturally:`
+          : `User: ${userMessage || 'Start the conversation'}\n\nRespond naturally:`,
+        temperature: 0.8,
+        maxTokens: 150
+      });
+
+      return polishResponse(aiResponse);
+    } catch (error) {
+      console.error('AI response error, falling back to templates:', error);
+      // Fall through to template-based response
+    }
+  }
+
+  // Fallback to template-based response
   const keywords = extractKeywords(userMessage);
   const sentiment = analyzeSentiment(userMessage);
   const messageLength = userMessage.split(' ').length;
-  
+
   // Build context from conversation history
   const context = buildContext(conversationHistory);
   const previousTopics = context.discussedTopics || [];
   const lastIntent = context.lastIntent;
-  
+
   // Generate response components
   const components = {
     greeting_time: responseComponents.greeting_time(),
@@ -166,26 +212,26 @@ export const generateContextualResponse = async (topic, userMessage, conversatio
     continuation: selectContinuation(),
     engagement: createEngagement(topic, stage)
   };
-  
+
   // Select appropriate template
   const templates = responseTemplates[topic] || responseTemplates.general;
-  const templateCategory = stage === "greeting" ? "greetings" : 
+  const templateCategory = stage === "greeting" ? "greetings" :
                           lastIntent === "question" ? "questions" : "responses";
   const availableTemplates = templates[templateCategory] || templates.responses;
   const selectedTemplate = availableTemplates[Math.floor(Math.random() * availableTemplates.length)];
-  
+
   // Fill template with components
   let response = selectedTemplate;
   for (const [key, value] of Object.entries(components)) {
     response = response.replace(`{${key}}`, value);
   }
-  
+
   // Clean up any remaining placeholders
   response = response.replace(/\{[^}]+\}/g, '');
-  
+
   // Ensure response is natural and flowing
   response = polishResponse(response);
-  
+
   return response;
 };
 

@@ -22,7 +22,14 @@ export const performanceMonitoring = (options = {}) => {
       const duration = Date.now() - startTime;
 
       // Add duration to response headers (useful for debugging)
-      res.setHeader('X-Response-Time', `${duration}ms`);
+      // Only set header if headers haven't been sent yet
+      if (!res.headersSent) {
+        try {
+          res.setHeader('X-Response-Time', `${duration}ms`);
+        } catch (e) {
+          // Ignore header errors for streamed responses
+        }
+      }
 
       // Log slow requests
       if (duration > slowRequestThreshold && logSlowRequests) {
