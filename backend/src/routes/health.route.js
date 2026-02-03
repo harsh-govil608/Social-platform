@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import redis from '../lib/redis.js';
+import redis, { usingRealRedis } from '../lib/redis.js';
 
 const router = express.Router();
 
@@ -136,6 +136,137 @@ router.get('/live', (req, res) => {
     status: 'alive',
     timestamp: new Date().toISOString(),
   });
+});
+
+/**
+ * @swagger
+ * /health/dependencies:
+ *   get:
+ *     summary: Check all external dependencies
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: All dependencies healthy
+ *       503:
+ *         description: One or more dependencies unhealthy
+ */
+router.get('/dependencies', async (req, res) => {
+  const dependencies = {
+    timestamp: new Date().toISOString(),
+    overall: 'healthy',
+    checks: {}
+  };
+
+  // Check MongoDB
+  try {
+    const startTime = Date.now();
+    const dbState = mongoose.connection.readyState;
+    const latency = Date.now() - startTime;
+
+    dependencies.checks.mongodb = {
+      status: dbState === 1 ? 'healthy' : 'unhealthy',
+      latency: `${latency}ms`,
+      state: ['disconnected', 'connected', 'connecting', 'disconnecting'][dbState]
+    };
+
+    if (dbState !== 1) dependencies.overall = 'unhealthy';
+  } catch (error) {
+    dependencies.checks.mongodb = {
+      status: 'unhealthy',
+      error: error.message
+    };
+    dependencies.overall = 'unhealthy';
+  }
+
+  // Check Redis
+  try {
+    const startTime = Date.now();
+    await redis.ping();
+    const latency = Date.now() - startTime;
+
+    dependencies.checks.redis = {
+      status: 'healthy',
+      latency: `${latency}ms`,
+      type: usingRealRedis() ? 'redis' : 'in-memory-mock'
+    };
+  } catch (error) {
+    dependencies.checks.redis = {
+      status: 'degraded', // Not critical
+      error: error.message,
+      type: 'unavailable'
+    };
+    // Redis is not critical, don't mark overall as unhealthy
+  }
+
+  // Check Stream Chat API (if configured)
+  if (process.env.STREAM_API_KEY) {
+    dependencies.checks.streamChat = {
+      status: 'configured',
+      note: 'API key present'
+    };
+  } else {
+    dependencies.checks.streamChat = {
+      status: 'not_configured'
+    };
+  }
+
+  // Check Stripe (if configured)
+  if (process.env.STRIPE_SECRET_KEY) {
+    dependencies.checks.stripe = {
+      status: 'configured',
+      note: 'API key present'
+    };
+  } else {
+    dependencies.checks.stripe = {
+      status: 'not_configured'
+    };
+  }
+
+  // Check AI Service (Hugging Face)
+  if (process.env.HF_TOKEN) {
+    dependencies.checks.aiService = {
+      status: 'configured',
+      provider: 'huggingface',
+      note: 'Token present'
+    };
+  } else if (process.env.OPENAI_API_KEY) {
+    dependencies.checks.aiService = {
+      status: 'configured',
+      provider: 'openai',
+      note: 'API key present'
+    };
+  } else {
+    dependencies.checks.aiService = {
+      status: 'not_configured'
+    };
+  }
+
+  // Check Email Service
+  if (process.env.EMAIL_HOST || process.env.SENDGRID_API_KEY) {
+    dependencies.checks.email = {
+      status: 'configured',
+      provider: process.env.SENDGRID_API_KEY ? 'sendgrid' : 'smtp'
+    };
+  } else {
+    dependencies.checks.email = {
+      status: 'not_configured',
+      note: 'Using console logging'
+    };
+  }
+
+  // Check Sentry (if configured)
+  if (process.env.SENTRY_DSN) {
+    dependencies.checks.sentry = {
+      status: 'configured'
+    };
+  } else {
+    dependencies.checks.sentry = {
+      status: 'not_configured'
+    };
+  }
+
+  const statusCode = dependencies.overall === 'healthy' ? 200 : 503;
+  res.status(statusCode).json(dependencies);
 });
 
 /**

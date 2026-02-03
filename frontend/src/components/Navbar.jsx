@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router";
-import { BellIcon, LogOutIcon, ShipWheelIcon, UserIcon, SettingsIcon, HomeIcon } from "lucide-react";
+import { BellIcon, LogOutIcon, Zap, UserIcon, SettingsIcon, HomeIcon, Flame } from "lucide-react";
 import ThemeSelector from "./ThemeSelector.jsx";
-import SearchBar from "./SearchBar.jsx";
 import useLogout from "../hooks/useLogout";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
@@ -22,35 +21,30 @@ const Navbar = () => {
   });
 
   const notificationCount = notificationData?.unreadCount || 0;
+  const streak = authUser?.streak || 0;
 
   return (
     <nav className="bg-base-200 border-b border-base-300 sticky top-0 z-30 h-16 flex items-center">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-end w-full">
-          {/* LOGO - ONLY IN THE CHAT PAGE */}
-          {isChatPage && (
-            <div className="pl-5">
-              <Link to="/" className="flex items-center gap-2.5">
-                <ShipWheelIcon className="size-9 text-primary" />
-                <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary  tracking-wider">
-                  Streamify
+          {/* LOGO - ONLY IN THE CHAT PAGE or mobile */}
+          {(isChatPage || true) && (
+            <div className="pl-5 lg:hidden">
+              <Link to="/" className="flex items-center gap-2">
+                <Zap className="size-7 text-primary" />
+                <span className="text-xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
+                  LangPal
                 </span>
               </Link>
             </div>
           )}
 
           <div className="flex items-center gap-3 sm:gap-4 ml-auto">
-            {/* Search Bar - Hidden on mobile */}
-            <div className="hidden lg:block">
-              <SearchBar />
+            {/* Streak indicator */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 rounded-full">
+              <Flame className="size-5 text-orange-500" />
+              <span className="font-bold text-orange-500">{streak}</span>
             </div>
-
-            {/* Quick navigation for mobile */}
-            {!isChatPage && (
-              <Link to="/" className="btn btn-ghost btn-circle lg:hidden">
-                <HomeIcon className="h-5 w-5" />
-              </Link>
-            )}
 
             {/* Notifications with badge */}
             <Link to="/notifications" className="btn btn-ghost btn-circle relative">

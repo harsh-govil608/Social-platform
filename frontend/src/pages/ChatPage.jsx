@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { getStreamToken } from "../lib/api";
+import { axiosInstance } from "../lib/axios";
 
 import {
   Channel,
@@ -17,6 +18,7 @@ import { StreamChat } from "stream-chat";
 import toast from "react-hot-toast";
 import ChatLoader from "../components/ChatLoader";
 import CallButton from "../components/CallButton";
+import AIMessageInput from "../components/AIMessageInput";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 const ChatPage = () => {
@@ -78,6 +80,37 @@ const ChatPage = () => {
     initChat();
   }, [tokenData, authUser, targetUserId]);
 
+  // Track practice completion for streak
+  const { mutate: completePractice } = useMutation({
+    mutationFn: () => axiosInstance.post("/activity/complete-practice"),
+    onSuccess: (data) => {
+      if (data.data.message !== "Already practiced today") {
+        toast.success(`Practice complete! Streak: ${data.data.streak} days`);
+      }
+    }
+  });
+
+  // Mark practice as complete after a few messages
+  useEffect(() => {
+    if (channel) {
+      const handleMessage = () => {
+        // Complete practice after user sends messages
+        completePractice();
+      };
+
+      // Listen for new messages from current user
+      channel.on("message.new", (event) => {
+        if (event.user?.id === authUser?._id) {
+          handleMessage();
+        }
+      });
+
+      return () => {
+        channel.off("message.new");
+      };
+    }
+  }, [channel, authUser, completePractice]);
+
   const handleVideoCall = () => {
     if (channel) {
       const callUrl = `${window.location.origin}/call/${channel.id}`;
@@ -95,13 +128,13 @@ const ChatPage = () => {
   return (
     <div className="h-[93vh]">
       <Chat client={chatClient}>
-        <Channel channel={channel}>
+        <Channel channel={channel} Input={AIMessageInput}>
           <div className="w-full relative">
             <CallButton handleVideoCall={handleVideoCall} />
             <Window>
               <ChannelHeader />
               <MessageList />
-              <MessageInput focus />
+              <MessageInput Input={AIMessageInput} focus />
             </Window>
           </div>
           <Thread />

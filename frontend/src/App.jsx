@@ -2,6 +2,14 @@ import { Navigate, Route, Routes } from "react-router";
 import HomePage from "./pages/HomePage.jsx";
 import SignUpPage from "./pages/SignUpPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
+import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
+import VocabularyReviewPage from "./pages/VocabularyReviewPage.jsx";
+import ContestsPage from "./pages/ContestsPage.jsx";
+import ContestDetailPage from "./pages/ContestDetailPage.jsx";
+import CertificatesPage from "./pages/CertificatesPage.jsx";
+import FindPartnersPage from "./pages/FindPartnersPage.jsx";
 import NotificationPage from "./pages/NotificationPage.jsx";
 import FriendsPage from "./pages/FriendsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
@@ -19,6 +27,9 @@ import AchievementsPage from "./pages/AchievementsPage.jsx";
 import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import ReferralPage from "./pages/ReferralPage.jsx";
 import AdminDashboardPage from "./pages/AdminDashboardPage.jsx";
+// New focused pages
+import PracticePage from "./pages/PracticePage.jsx";
+import ProgressPage from "./pages/ProgressPage.jsx";
 import { Toaster } from "react-hot-toast";
 import PageLoader from "./components/PageLoader.jsx";
 import useAuthUser from "./hooks/useAuthUser.js";
@@ -65,6 +76,22 @@ const App = () => {
           }
         />
         <Route
+          path="/forgot-password"
+          element={
+            !isAuthenticated ? <ForgotPasswordPage /> : <Navigate to="/" />
+          }
+        />
+        <Route
+          path="/reset-password/:token"
+          element={
+            !isAuthenticated ? <ResetPasswordPage /> : <Navigate to="/" />
+          }
+        />
+        <Route
+          path="/verify-email/:token"
+          element={<VerifyEmailPage />}
+        />
+        <Route
           path="/notifications"
           element={
             isAuthenticated && isOnboarded ? (
@@ -82,6 +109,31 @@ const App = () => {
             isAuthenticated && isOnboarded ? (
               <Layout showSidebar={true}>
                 <FriendsPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        {/* New focused routes */}
+        <Route
+          path="/practice"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <PracticePage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/progress"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <ProgressPage />
               </Layout>
             ) : (
               <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
@@ -183,6 +235,68 @@ const App = () => {
             isAuthenticated && isOnboarded ? (
               <Layout showSidebar={false}>
                 <ConversationPracticePage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+
+        <Route
+          path="/vocabulary"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <VocabularyReviewPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+
+        <Route
+          path="/contests"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <ContestsPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/contest/:id"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={false}>
+                <ContestDetailPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/certificates"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <CertificatesPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/find-partners"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <FindPartnersPage />
               </Layout>
             ) : (
               <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />

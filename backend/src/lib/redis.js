@@ -1,39 +1,61 @@
-// Install ioredis with: npm install ioredis
-// import Redis from 'ioredis';
-
 /**
  * Redis cache implementation for performance optimization
+ * Uses ioredis when REDIS_URL is configured, otherwise falls back to in-memory mock
  *
  * Install: npm install ioredis
- *
- * Uncomment the code below after installing ioredis
  */
 
-/*
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  retryStrategy(times) {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
-  maxRetriesPerRequest: 3,
-});
+let redis;
+let isRealRedis = false;
 
-redis.on('connect', () => {
-  console.log('✅ Connected to Redis');
-});
+// Try to use real Redis if REDIS_URL is configured
+if (process.env.REDIS_URL) {
+  try {
+    const Redis = (await import('ioredis')).default;
 
-redis.on('error', (err) => {
-  console.error('❌ Redis connection error:', err);
-});
+    redis = new Redis(process.env.REDIS_URL, {
+      retryStrategy(times) {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      maxRetriesPerRequest: 3,
+      lazyConnect: true,
+    });
 
-export default redis;
-*/
+    // Test connection
+    await redis.connect();
+    isRealRedis = true;
+    console.log('✅ Connected to Redis');
+
+    redis.on('error', (err) => {
+      console.error('❌ Redis connection error:', err);
+    });
+
+    redis.on('reconnecting', () => {
+      console.log('🔄 Redis reconnecting...');
+    });
+
+  } catch (error) {
+    console.warn('⚠️  Redis connection failed, falling back to in-memory cache:', error.message);
+    redis = null;
+  }
+}
 
 // Mock Redis client for development without Redis
 class MockRedis {
   constructor() {
     this.store = new Map();
-    console.log('⚠️  Using mock Redis (in-memory). Install Redis and ioredis for production.');
+    this.cleanupInterval = setInterval(() => this._cleanup(), 60000); // Cleanup every minute
+    console.log('⚠️  Using mock Redis (in-memory). Set REDIS_URL for production caching.');
+  }
+
+  _cleanup() {
+    const now = Date.now();
+    for (const [key, item] of this.store.entries()) {
+      if (item.expiry && now > item.expiry) {
+        this.store.delete(key);
+      }
+    }
   }
 
   async get(key) {
@@ -54,18 +76,32 @@ class MockRedis {
 
     if (expiryMode === 'EX') {
       item.expiry = Date.now() + time * 1000;
+    } else if (expiryMode === 'PX') {
+      item.expiry = Date.now() + time;
     }
 
     this.store.set(key, item);
     return 'OK';
   }
 
-  async del(key) {
-    return this.store.delete(key) ? 1 : 0;
+  async setex(key, seconds, value) {
+    return this.set(key, value, 'EX', seconds);
   }
 
-  async exists(key) {
-    return this.store.has(key) ? 1 : 0;
+  async del(...keys) {
+    let count = 0;
+    for (const key of keys) {
+      if (this.store.delete(key)) count++;
+    }
+    return count;
+  }
+
+  async exists(...keys) {
+    let count = 0;
+    for (const key of keys) {
+      if (this.store.has(key)) count++;
+    }
+    return count;
   }
 
   async flushall() {
@@ -78,11 +114,47 @@ class MockRedis {
     const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
     return Array.from(this.store.keys()).filter(key => regex.test(key));
   }
+
+  async incr(key) {
+    const item = this.store.get(key);
+    const newValue = item ? parseInt(item.value, 10) + 1 : 1;
+    this.store.set(key, { value: String(newValue), expiry: item?.expiry });
+    return newValue;
+  }
+
+  async expire(key, seconds) {
+    const item = this.store.get(key);
+    if (!item) return 0;
+    item.expiry = Date.now() + seconds * 1000;
+    return 1;
+  }
+
+  async ttl(key) {
+    const item = this.store.get(key);
+    if (!item) return -2;
+    if (!item.expiry) return -1;
+    const remaining = Math.ceil((item.expiry - Date.now()) / 1000);
+    return remaining > 0 ? remaining : -2;
+  }
+
+  async ping() {
+    return 'PONG';
+  }
+
+  // Cleanup on process exit
+  destroy() {
+    clearInterval(this.cleanupInterval);
+    this.store.clear();
+  }
 }
 
-const redis = new MockRedis();
+// Use mock if real Redis isn't available
+if (!redis) {
+  redis = new MockRedis();
+}
 
 export default redis;
+export const usingRealRedis = () => isRealRedis;
 
 /**
  * Cache helper functions
@@ -141,5 +213,34 @@ export const clearAllCache = async () => {
     console.log('🗑️  All cache cleared');
   } catch (error) {
     console.error('Cache clear error:', error);
+  }
+};
+
+/**
+ * Rate limiting helper
+ * @param {string} key - Rate limit key (e.g., 'ratelimit:ip:192.168.1.1')
+ * @param {number} limit - Max requests allowed
+ * @param {number} windowSeconds - Time window in seconds
+ * @returns {Object} { allowed: boolean, remaining: number, resetIn: number }
+ */
+export const checkRateLimit = async (key, limit, windowSeconds) => {
+  try {
+    const current = await redis.incr(key);
+
+    if (current === 1) {
+      await redis.expire(key, windowSeconds);
+    }
+
+    const ttl = await redis.ttl(key);
+
+    return {
+      allowed: current <= limit,
+      remaining: Math.max(0, limit - current),
+      resetIn: ttl > 0 ? ttl : windowSeconds
+    };
+  } catch (error) {
+    console.error('Rate limit check error:', error);
+    // Fail open - allow the request if cache fails
+    return { allowed: true, remaining: limit, resetIn: windowSeconds };
   }
 };

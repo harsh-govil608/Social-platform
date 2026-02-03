@@ -22,6 +22,10 @@ import storyRoutes from "./routes/story.route.js";
 import activityRoutes from "./routes/activity.route.js";
 import dsaRoutes from "./routes/dsa.route.js";
 import aiTutorRoutes from "./routes/aiTutor.route.js";
+import spacedRepetitionRoutes from "./routes/spacedRepetition.route.js";
+import contestRoutes from "./routes/contest.route.js";
+import certificateRoutes from "./routes/certificate.route.js";
+import matchingRoutes from "./routes/matching.route.js";
 
 // New monetization & B2B routes
 import subscriptionRoutes from "./routes/subscription.route.js";
@@ -73,7 +77,9 @@ const PORT= process.env.PORT;
 const server = createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176"],
+        origin: process.env.CORS_ORIGIN
+            ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+            : ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176"],
         credentials: true
     }
 });
@@ -106,9 +112,29 @@ app.get("/api/test", (req, res) => {
 app.use(express.json());
 app.use(cookieParser());
 
-// Configure CORS - simplified for combined setup
+// Configure CORS - use environment variable for allowed origins
+const getAllowedOrigins = () => {
+    if (process.env.CORS_ORIGIN) {
+        // Support comma-separated origins in production
+        return process.env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+    }
+    // Default to localhost ports in development
+    return ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'];
+};
+
 const corsOptions = {
-    origin: true, // Allow all origins for now
+    origin: (origin, callback) => {
+        const allowedOrigins = getAllowedOrigins();
+        // Allow requests with no origin (like mobile apps or curl requests in dev)
+        if (!origin && process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
@@ -140,6 +166,10 @@ app.use("/api/stories", apiLimiter, storyRoutes);
 app.use("/api/activity", apiLimiter, activityRoutes);
 app.use("/api/dsa", aiLimiter, dsaRoutes);
 app.use("/api/ai-tutor", aiLimiter, aiTutorRoutes);
+app.use("/api/vocabulary", apiLimiter, spacedRepetitionRoutes);
+app.use("/api/contests", apiLimiter, contestRoutes);
+app.use("/api/certificates", apiLimiter, certificateRoutes);
+app.use("/api/matching", apiLimiter, matchingRoutes);
 
 // Monetization & B2B routes
 app.use("/api/subscription", apiLimiter, subscriptionRoutes);

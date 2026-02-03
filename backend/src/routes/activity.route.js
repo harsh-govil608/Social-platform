@@ -1,8 +1,73 @@
 import express from "express";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import UserActivity from "../models/UserActivity.js";
+import User from "../models/User.js";
 
 const router = express.Router();
+
+// Update user streak (call after completing practice)
+router.post("/complete-practice", protectRoute, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const lastPractice = user.lastPracticeDate ? new Date(user.lastPracticeDate) : null;
+    if (lastPractice) {
+      lastPractice.setHours(0, 0, 0, 0);
+    }
+
+    // Check if already practiced today
+    if (lastPractice && lastPractice.getTime() === today.getTime()) {
+      return res.json({
+        streak: user.streak,
+        message: "Already practiced today"
+      });
+    }
+
+    // Check if practiced yesterday (streak continues)
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (lastPractice && lastPractice.getTime() === yesterday.getTime()) {
+      // Continue streak
+      user.streak += 1;
+    } else if (!lastPractice || lastPractice.getTime() < yesterday.getTime()) {
+      // Streak broken or first time, reset to 1
+      user.streak = 1;
+    }
+
+    // Update best streak if current is higher
+    if (user.streak > user.bestStreak) {
+      user.bestStreak = user.streak;
+    }
+
+    user.lastPracticeDate = new Date();
+    await user.save();
+
+    // Also log activity
+    let activity = await UserActivity.findOne({ userId });
+    if (!activity) {
+      activity = await UserActivity.create({ userId });
+    }
+    await activity.logActivity('practice', { type: 'daily_practice' });
+
+    res.json({
+      streak: user.streak,
+      bestStreak: user.bestStreak,
+      message: "Practice completed!"
+    });
+  } catch (error) {
+    console.error("Error completing practice:", error);
+    res.status(500).json({ message: "Failed to complete practice" });
+  }
+});
 
 // Initialize or get user activity
 router.get("/init", protectRoute, async (req, res) => {
@@ -317,6 +382,116 @@ router.get("/achievements", protectRoute, async (req, res) => {
   } catch (error) {
     console.error("Error fetching achievements:", error);
     res.status(500).json({ message: "Failed to fetch achievements" });
+  }
+});
+
+// Get today's activity status (for homepage core loop)
+router.get("/today", protectRoute, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const activity = await UserActivity.findOne({ userId });
+    const today = new Date().toDateString();
+
+    if (!activity) {
+      return res.json({
+        lessonCompleted: false,
+        practiceCompleted: false,
+        todayPracticed: false
+      });
+    }
+
+    const todaySession = activity.dailySessions.find(s =>
+      new Date(s.date).toDateString() === today
+    );
+
+    // Check if lesson/practice was done today
+    const lessonCompleted = todaySession?.activities?.some(a =>
+      a.type === 'lesson' || a.type === 'vocabulary' || a.type === 'language_journey'
+    ) || false;
+
+    const practiceCompleted = todaySession?.activities?.some(a =>
+      a.type === 'practice' || a.type === 'conversation' || a.type === 'chat'
+    ) || false;
+
+    res.json({
+      lessonCompleted,
+      practiceCompleted,
+      todayPracticed: lessonCompleted || practiceCompleted
+    });
+  } catch (error) {
+    console.error("Error fetching today's activity:", error);
+    res.status(500).json({ message: "Failed to fetch today's activity" });
+  }
+});
+
+// Get simple stats for progress page
+router.get("/stats", protectRoute, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const activity = await UserActivity.findOne({ userId });
+
+    if (!activity) {
+      return res.json({
+        todayPracticed: false,
+        bestStreak: 0,
+        totalSessions: 0,
+        wordsLearned: 0
+      });
+    }
+
+    const today = new Date().toDateString();
+    const todaySession = activity.dailySessions.find(s =>
+      new Date(s.date).toDateString() === today
+    );
+
+    // Calculate best streak
+    let bestStreak = 0;
+    let currentStreak = 0;
+    const sortedSessions = [...activity.dailySessions]
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    for (let i = 0; i < sortedSessions.length; i++) {
+      if (i === 0) {
+        currentStreak = 1;
+      } else {
+        const prevDate = new Date(sortedSessions[i - 1].date);
+        const currDate = new Date(sortedSessions[i].date);
+        const diffDays = Math.round((currDate - prevDate) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 1) {
+          currentStreak++;
+        } else {
+          currentStreak = 1;
+        }
+      }
+      bestStreak = Math.max(bestStreak, currentStreak);
+    }
+
+    // Count total practice sessions
+    const totalSessions = activity.dailySessions.reduce((sum, session) => {
+      return sum + (session.activities?.filter(a =>
+        a.type === 'practice' || a.type === 'conversation' || a.type === 'chat'
+      ).length || 0);
+    }, 0);
+
+    // Count words learned (vocabulary activities)
+    const wordsLearned = activity.dailySessions.reduce((sum, session) => {
+      return sum + (session.activities?.filter(a =>
+        a.type === 'vocabulary' || a.type === 'lesson'
+      ).length || 0) * 10; // Assume 10 words per lesson
+    }, 0);
+
+    res.json({
+      todayPracticed: !!todaySession,
+      bestStreak,
+      totalSessions,
+      wordsLearned
+    });
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    res.status(500).json({ message: "Failed to fetch stats" });
   }
 });
 

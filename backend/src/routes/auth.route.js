@@ -2,6 +2,17 @@ import express from 'express';
 import { protectRoute } from "../middleware/auth.middleware.js";
 import { signup, logout, onboard, login } from "../controllers/auth.controller.js";
 import { validateSignup, validateLogin, handleValidationErrors } from "../validators/auth.validator.js";
+import {
+    requestPasswordReset,
+    verifyResetToken,
+    resetPassword
+} from '../controllers/passwordReset.controller.js';
+import {
+    sendVerificationEmail,
+    verifyEmail,
+    resendVerificationEmail,
+    getVerificationStatus
+} from '../controllers/emailVerification.controller.js';
 
 const router= express.Router();
 
@@ -135,5 +146,157 @@ router.post("/onboarding", protectRoute, onboard);
 router.get("/me", protectRoute, (req,res)=>{
     res.status(200).json({ success: true, user: req.user});
 });
+
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Request password reset email
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: If email exists, reset link sent
+ *       429:
+ *         description: Too many requests
+ */
+router.post("/forgot-password", requestPasswordReset);
+
+/**
+ * @swagger
+ * /auth/verify-reset-token/{token}:
+ *   get:
+ *     summary: Verify password reset token is valid
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Token is valid
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.get("/verify-reset-token/:token", verifyResetToken);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Reset password using token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - newPassword
+ *             properties:
+ *               token:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *       400:
+ *         description: Invalid token or password
+ */
+router.post("/reset-password", resetPassword);
+
+// Email Verification Routes
+/**
+ * @swagger
+ * /auth/send-verification:
+ *   post:
+ *     summary: Send email verification link (authenticated)
+ *     tags: [Authentication]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Verification email sent
+ *       429:
+ *         description: Too many requests
+ */
+router.post("/send-verification", protectRoute, sendVerificationEmail);
+
+/**
+ * @swagger
+ * /auth/verify-email/{token}:
+ *   get:
+ *     summary: Verify email with token
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.get("/verify-email/:token", verifyEmail);
+
+/**
+ * @swagger
+ * /auth/resend-verification:
+ *   post:
+ *     summary: Resend verification email (public)
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: If email is unverified, verification link sent
+ *       429:
+ *         description: Too many requests
+ */
+router.post("/resend-verification", resendVerificationEmail);
+
+/**
+ * @swagger
+ * /auth/verification-status:
+ *   get:
+ *     summary: Check email verification status
+ *     tags: [Authentication]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Verification status returned
+ */
+router.get("/verification-status", protectRoute, getVerificationStatus);
 
 export default router;

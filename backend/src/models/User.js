@@ -95,6 +95,18 @@ const userSchema=new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isEmailVerified: {
+        type: Boolean,
+        default: false
+    },
+    emailVerificationToken: {
+        type: String,
+        default: null
+    },
+    emailVerificationExpires: {
+        type: Date,
+        default: null
+    },
     role: {
         type: String,
         enum: ['user', 'admin'],
@@ -111,6 +123,71 @@ const userSchema=new mongoose.Schema({
     deletionRequestedAt: {
         type: Date,
         default: null
+    },
+    // Gamification - simplified to streak only
+    streak: {
+        type: Number,
+        default: 0
+    },
+    lastPracticeDate: {
+        type: Date,
+        default: null
+    },
+    bestStreak: {
+        type: Number,
+        default: 0
+    },
+    // Partner matching fields
+    timezone: {
+        type: String,
+        default: ''
+    },
+    learningGoals: [{
+        type: String
+    }],
+    availability: [{
+        day: {
+            type: String,
+            enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        },
+        startHour: {
+            type: Number,
+            min: 0,
+            max: 23
+        },
+        endHour: {
+            type: Number,
+            min: 0,
+            max: 23
+        }
+    }],
+    languageProficiency: {
+        type: String,
+        enum: ['beginner', 'elementary', 'intermediate', 'upper_intermediate', 'advanced', 'native'],
+        default: 'beginner'
+    },
+    partnerPreferences: {
+        ageRange: {
+            min: { type: Number, default: 18 },
+            max: { type: Number, default: 99 }
+        },
+        preferredProficiency: [{
+            type: String,
+            enum: ['beginner', 'elementary', 'intermediate', 'upper_intermediate', 'advanced', 'native']
+        }],
+        communicationStyle: {
+            type: String,
+            enum: ['casual', 'structured', 'both'],
+            default: 'both'
+        }
+    },
+    // AI tutor preferences
+    aiPreferences: {
+        preferredTutor: {
+            type: String,
+            enum: ['friendly', 'professional', 'challenging', 'playful'],
+            default: 'friendly'
+        }
     }
 },{timestamps: true});
 userSchema.pre("save",async function(next){

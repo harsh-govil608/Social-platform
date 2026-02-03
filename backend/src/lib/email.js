@@ -94,15 +94,16 @@ export const sendWelcomeEmail = async (user) => {
 
 /**
  * Send password reset email
+ * @param {string} email - User's email address
+ * @param {string} name - User's full name
+ * @param {string} resetUrl - Complete reset URL with token
  */
-export const sendPasswordResetEmail = async (user, resetToken) => {
-  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-
+export const sendPasswordResetEmail = async (email, name, resetUrl) => {
   const subject = 'Password Reset Request';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1 style="color: #333;">Password Reset</h1>
-      <p>Hi ${user.fullName},</p>
+      <p>Hi ${name},</p>
       <p>You requested to reset your password. Click the button below to create a new password:</p>
       <a href="${resetUrl}"
          style="display: inline-block; padding: 12px 24px; background: #4F46E5; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
@@ -110,14 +111,14 @@ export const sendPasswordResetEmail = async (user, resetToken) => {
       </a>
       <p style="color: #666;">This link will expire in 1 hour.</p>
       <p style="color: #666; font-size: 14px; margin-top: 30px;">
-        If you didn't request this, please ignore this email.
+        If you didn't request this, please ignore this email. Your password won't change until you create a new one.
       </p>
     </div>
   `;
-  const text = `Reset your password: ${resetUrl}`;
+  const text = `Hi ${name}, reset your password using this link: ${resetUrl}. This link expires in 1 hour.`;
 
   return sendEmail({
-    to: user.email,
+    to: email,
     subject,
     html,
     text,

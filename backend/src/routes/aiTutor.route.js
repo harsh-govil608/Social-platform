@@ -4,58 +4,71 @@ import { protectRoute } from "../middleware/auth.middleware.js";
 import AITutorSession from "../models/AITutorSession.js";
 import User from "../models/User.js";
 import { generateAIResponse, MODELS } from "../lib/ai.js";
+import {
+  getAllPersonalities,
+  getPersonality,
+  getSystemPrompt,
+  getConversationStarter,
+  formatFeedback
+} from "../lib/aiPersonalities.js";
 
 const router = express.Router();
 
 // AI Tutor service with real Hugging Face integration
 class AITutorService {
-  static async generateResponse(userMessage, context, sessionType, conversationHistory = []) {
+  static async generateResponse(userMessage, context, sessionType, conversationHistory = [], personality = 'friendly') {
     const { userLanguages, currentTopic, userLevel, strugglingAreas } = context;
 
-    // Build system prompt based on session type
-    let systemPrompt = '';
+    // Get personality-specific base prompt
+    const personalityData = getPersonality(personality);
+    let systemPrompt = getSystemPrompt(personality, {
+      language: userLanguages?.learning,
+      level: userLevel,
+      topic: currentTopic
+    });
+
+    // Append session-type specific instructions
 
     if (sessionType === 'language_help') {
-      systemPrompt = `You are an expert language tutor helping a ${userLevel} level student learn ${userLanguages.learning} (their native language is ${userLanguages.native}).
+      systemPrompt += `\n\nYou are also an expert language tutor helping a ${userLevel} level student learn ${userLanguages?.learning || 'a new language'} (their native language is ${userLanguages?.native || 'English'}).
 
-Your teaching style:
+Additional teaching guidelines:
 - Break down complex grammar into simple explanations
 - Use examples from their native language when helpful
-- Be encouraging and patient
 - Provide actionable practice suggestions
 - Keep responses concise (2-3 paragraphs max)
 
-${strugglingAreas.length > 0 ? `The student struggles with: ${strugglingAreas.join(', ')}` : ''}`;
+${strugglingAreas?.length > 0 ? `The student struggles with: ${strugglingAreas.join(', ')}` : ''}`;
     }
     else if (sessionType === 'coding_help') {
-      systemPrompt = `You are a patient programming mentor helping a ${userLevel} level developer.
+      systemPrompt += `\n\nYou are also a patient programming mentor helping a ${userLevel} level developer.
 
-Your teaching approach:
+Additional teaching guidelines:
 - Explain concepts step-by-step
 - Use simple analogies when explaining algorithms
 - Provide code examples when relevant
 - Ask clarifying questions before diving deep
 - Keep responses focused (2-3 paragraphs)
 
-${strugglingAreas.length > 0 ? `Areas the student finds challenging: ${strugglingAreas.join(', ')}` : ''}`;
+${strugglingAreas?.length > 0 ? `Areas the student finds challenging: ${strugglingAreas.join(', ')}` : ''}`;
     }
     else if (sessionType === 'career_guidance') {
-      systemPrompt = `You are a tech career advisor with expertise in global job markets. The student knows ${userLanguages.native} and is learning ${userLanguages.learning}, which gives them unique advantages.
+      systemPrompt += `\n\nYou are also a tech career advisor with expertise in global job markets. The student knows ${userLanguages?.native || 'one language'} and is learning ${userLanguages?.learning || 'another language'}, which gives them unique advantages.
 
-Your guidance style:
+Additional guidance:
 - Provide practical, actionable career advice
 - Highlight opportunities that match their language skills
 - Be realistic but encouraging
 - Keep advice concise and specific`;
     }
     else {
-      systemPrompt = `You are a friendly AI learning mentor. You help students with:
+      systemPrompt += `\n\nYou help students with:
 - Language learning (grammar, pronunciation, conversation)
 - Programming and algorithms
 - Career planning in tech
 - Study strategies and motivation
 
-Be conversational, supportive, and concise in your responses.`;
+Be conversational and concise in your responses.`;
     }
 
     // Build conversation context (last 4 messages for context)
@@ -149,33 +162,79 @@ Be conversational, supportive, and concise in your responses.`;
   }
 }
 
+// Get available AI tutor personalities
+router.get("/personalities", protectRoute, async (req, res) => {
+  try {
+    const personalities = getAllPersonalities();
+    const user = await User.findById(req.user._id).select('aiPreferences');
+
+    res.json({
+      success: true,
+      personalities,
+      currentPreference: user?.aiPreferences?.preferredTutor || 'friendly'
+    });
+  } catch (error) {
+    console.error("Error fetching personalities:", error);
+    res.status(500).json({ message: "Failed to fetch personalities" });
+  }
+});
+
+// Update user's preferred AI tutor personality
+router.post("/preferences", protectRoute, async (req, res) => {
+  try {
+    const { preferredTutor } = req.body;
+    const validPersonalities = ['friendly', 'professional', 'challenging', 'playful'];
+
+    if (!validPersonalities.includes(preferredTutor)) {
+      return res.status(400).json({ message: "Invalid personality type" });
+    }
+
+    await User.findByIdAndUpdate(req.user._id, {
+      'aiPreferences.preferredTutor': preferredTutor
+    });
+
+    res.json({
+      success: true,
+      message: "AI tutor preference updated",
+      preferredTutor
+    });
+  } catch (error) {
+    console.error("Error updating AI preference:", error);
+    res.status(500).json({ message: "Failed to update preference" });
+  }
+});
+
 // Start new AI tutor session
 router.post("/start-session", protectRoute, async (req, res) => {
   try {
-    const { sessionType, initialMessage } = req.body;
+    const { sessionType, initialMessage, personality } = req.body;
     const userId = req.user._id;
 
     if (!initialMessage || !sessionType) {
       return res.status(400).json({ message: "Initial message and session type are required" });
     }
 
-    // Get user context
+    // Get user context and preferred personality
     const user = await User.findById(userId);
+    const userPersonality = personality || user?.aiPreferences?.preferredTutor || 'friendly';
+
     const context = {
       userLanguages: {
         native: user.nativeLanguage || 'English',
         learning: user.learningLanguage || 'Spanish'
       },
       userLevel: user.skillLevel || 'beginner',
-      strugglingAreas: user.strugglingAreas || []
+      strugglingAreas: user.strugglingAreas || [],
+      personality: userPersonality
     };
 
-    // Generate AI response using Hugging Face
+    // Generate AI response using Hugging Face with personality
     const aiResponse = await AITutorService.generateResponse(
       initialMessage,
       context,
       sessionType,
-      []
+      [],
+      userPersonality
     );
 
     // Create new session
@@ -238,12 +297,13 @@ router.post("/continue-session/:sessionId", protectRoute, async (req, res) => {
       }
     });
 
-    // Generate AI response with conversation history
+    // Generate AI response with conversation history and personality
     const aiResponse = await AITutorService.generateResponse(
       message,
       session.context,
       session.sessionType,
-      session.messages
+      session.messages,
+      session.context?.personality || 'friendly'
     );
 
     // Add AI response
@@ -335,6 +395,72 @@ router.post("/rate-session/:sessionId", protectRoute, async (req, res) => {
   } catch (error) {
     console.error("Error rating AI tutor session:", error);
     res.status(500).json({ message: "Failed to rate session" });
+  }
+});
+
+// Quick grammar/spelling correction for chat messages (invisible AI)
+router.post("/quick-correct", protectRoute, async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || text.length < 10) {
+      return res.json({
+        hasSuggestion: false,
+        corrected: text,
+        explanation: null
+      });
+    }
+
+    // Get user's learning language for context
+    const user = await User.findById(req.user._id);
+    const learningLanguage = user?.learningLanguage || 'English';
+
+    // Use AI to check and correct the message
+    const systemPrompt = `You are a helpful language assistant. The user is learning ${learningLanguage}.
+Check their message for grammar, spelling, and natural phrasing errors.
+
+Rules:
+- If the message is correct or only has very minor issues, respond with: {"hasSuggestion": false}
+- If there are meaningful improvements, respond with: {"hasSuggestion": true, "corrected": "the corrected text", "explanation": "brief 5-10 word explanation"}
+- Keep corrections natural and conversational
+- Don't change the meaning
+- Only suggest changes if they significantly improve the message
+
+Respond ONLY with valid JSON, nothing else.`;
+
+    const aiResponse = await generateAIResponse({
+      systemPrompt,
+      userMessage: `Check this message: "${text}"`,
+      model: MODELS.FAST, // Use fast model for quick responses
+      temperature: 0.3,
+      maxTokens: 150
+    });
+
+    // Parse AI response
+    try {
+      const parsed = JSON.parse(aiResponse);
+      res.json({
+        hasSuggestion: parsed.hasSuggestion || false,
+        corrected: parsed.corrected || text,
+        explanation: parsed.explanation || null
+      });
+    } catch {
+      // If parsing fails, return no suggestion
+      res.json({
+        hasSuggestion: false,
+        corrected: text,
+        explanation: null
+      });
+    }
+
+  } catch (error) {
+    console.error("Error in quick-correct:", error);
+    // Don't fail the request, just return no suggestion
+    res.json({
+      hasSuggestion: false,
+      corrected: req.body.text,
+      explanation: null
+    });
   }
 });
 

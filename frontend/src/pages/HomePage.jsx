@@ -1,210 +1,218 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import {
-  getOutgoingFriendReqs,
-  getRecommendedUsers,
-  getUserFriends,
-  sendFriendRequest,
-} from "../lib/api";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
-import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, BellIcon, MessageSquareIcon } from "lucide-react";
-import FriendCard from "../components/FriendCard";
-import NoFriendsFound from "../components/NoFriendsFound";
-import EnhancedFeed from "../components/EnhancedFeed";
-import EnhancedCreatePost from "../components/EnhancedCreatePost";
+import {
+  Flame,
+  BookOpen,
+  MessageCircle,
+  ChevronRight,
+  CheckCircle2,
+  Clock,
+  Sparkles
+} from "lucide-react";
+import useAuthUser from "../hooks/useAuthUser";
+import { getUserFriends } from "../lib/api";
+import { axiosInstance } from "../lib/axios";
 
 const HomePage = () => {
-  const queryClient = useQueryClient();
-  const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
+  const { authUser } = useAuthUser();
 
-  const { data: friends = [], isLoading: loadingFriends } = useQuery({
+  const { data: friends = [] } = useQuery({
     queryKey: ["friends"],
     queryFn: getUserFriends,
   });
 
-  const { data: recommendedUsers = [], isLoading: loadingUsers } = useQuery({
-    queryKey: ["users"],
-    queryFn: getRecommendedUsers,
+  const { data: activity } = useQuery({
+    queryKey: ["todayActivity"],
+    queryFn: async () => {
+      try {
+        const res = await axiosInstance.get("/activity/today");
+        return res.data;
+      } catch {
+        return { lessonCompleted: false, practiceCompleted: false };
+      }
+    },
   });
 
-  const { data: outgoingFriendReqs } = useQuery({
-    queryKey: ["outgoingFriendReqs"],
-    queryFn: getOutgoingFriendReqs,
-  });
-
-  const { mutate: sendRequestMutation, isPending } = useMutation({
-    mutationFn: sendFriendRequest,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["outgoingFriendReqs"] }),
-  });
-
-  useEffect(() => {
-    const outgoingIds = new Set();
-    if (outgoingFriendReqs && outgoingFriendReqs.length > 0) {
-      outgoingFriendReqs.forEach((req) => {
-        outgoingIds.add(req.recipient._id);
-      });
-      setOutgoingRequestsIds(outgoingIds);
-    }
-  }, [outgoingFriendReqs]);
+  const streak = authUser?.streak || 0;
+  const lessonDone = activity?.lessonCompleted || false;
+  const practiceDone = activity?.practiceCompleted || false;
+  const allDone = lessonDone && practiceDone;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-base-100">
-      <div className="container mx-auto max-w-7xl">
-        {/* Welcome Section */}
-        <div className="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl mb-8 p-8">
-          <div className="hero-content text-center">
-            <div className="max-w-2xl">
-              <h1 className="text-4xl font-bold mb-4">
-                Welcome to <span className="text-primary">Streamify</span>
-              </h1>
-              <p className="text-lg opacity-80 mb-6">
-                Connect with language learners worldwide and practice together
+      <div className="container mx-auto max-w-2xl">
+        {/* Greeting */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-1">
+            Hey, {authUser?.fullName?.split(' ')[0]}!
+          </h1>
+          <p className="text-base-content/70">
+            {allDone
+              ? "Amazing work today! Come back tomorrow."
+              : "Complete your daily practice to keep your streak."}
+          </p>
+        </div>
+
+        {/* Streak Card */}
+        <div className="card bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 mb-8">
+          <div className="card-body py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-orange-500 p-4 rounded-2xl">
+                  <Flame className="size-8 text-white" />
+                </div>
+                <div>
+                  <p className="text-4xl font-bold text-orange-500">{streak}</p>
+                  <p className="text-sm opacity-70">day streak</p>
+                </div>
+              </div>
+              {!allDone && (
+                <div className="text-right">
+                  <p className="text-sm font-medium">Today's goal</p>
+                  <p className="text-xs opacity-70">Learn + Practice</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Daily Tasks */}
+        <h2 className="font-semibold text-lg mb-4">Today's Tasks</h2>
+        <div className="space-y-4 mb-8">
+          {/* Learn Task */}
+          <Link
+            to="/language-journey"
+            className={`card transition-all ${
+              lessonDone
+                ? "bg-success/10 border-success/30 border"
+                : "bg-base-200 hover:bg-base-300"
+            }`}
+          >
+            <div className="card-body p-5 flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${
+                  lessonDone ? "bg-success/20" : "bg-primary/10"
+                }`}>
+                  {lessonDone ? (
+                    <CheckCircle2 className="size-7 text-success" />
+                  ) : (
+                    <BookOpen className="size-7 text-primary" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">
+                    {lessonDone ? "Lesson Complete!" : "Today's Lesson"}
+                  </h3>
+                  <p className="text-sm opacity-70">
+                    {lessonDone
+                      ? "Great job learning today"
+                      : `Learn new ${authUser?.learningLanguage || "words"} vocabulary`}
+                  </p>
+                </div>
+              </div>
+              {!lessonDone && <ChevronRight className="size-5 opacity-50" />}
+            </div>
+          </Link>
+
+          {/* Practice Task */}
+          <Link
+            to="/practice"
+            className={`card transition-all ${
+              practiceDone
+                ? "bg-success/10 border-success/30 border"
+                : "bg-base-200 hover:bg-base-300"
+            }`}
+          >
+            <div className="card-body p-5 flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${
+                  practiceDone ? "bg-success/20" : "bg-secondary/10"
+                }`}>
+                  {practiceDone ? (
+                    <CheckCircle2 className="size-7 text-success" />
+                  ) : (
+                    <MessageCircle className="size-7 text-secondary" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">
+                    {practiceDone ? "Practice Complete!" : "Practice Speaking"}
+                  </h3>
+                  <p className="text-sm opacity-70">
+                    {practiceDone
+                      ? "You practiced with someone today"
+                      : friends.length > 0
+                        ? `Chat with one of your ${friends.length} friends`
+                        : "5-minute conversation practice"}
+                  </p>
+                </div>
+              </div>
+              {!practiceDone && <ChevronRight className="size-5 opacity-50" />}
+            </div>
+          </Link>
+        </div>
+
+        {/* Status Message */}
+        {allDone ? (
+          <div className="card bg-gradient-to-r from-primary to-secondary text-primary-content mb-8">
+            <div className="card-body items-center text-center py-8">
+              <Sparkles className="size-12 mb-2" />
+              <h3 className="text-xl font-bold">All done for today!</h3>
+              <p className="opacity-90">
+                Your streak is safe. See you tomorrow!
               </p>
-              <div className="stats stats-horizontal shadow bg-base-200">
-                <div className="stat">
-                  <div className="stat-figure text-primary">
-                    <UsersIcon className="w-8 h-8" />
-                  </div>
-                  <div className="stat-title">Friends</div>
-                  <div className="stat-value text-primary">{friends.length}</div>
-                  <div className="stat-desc">Active connections</div>
-                </div>
-                <div className="stat">
-                  <div className="stat-figure text-secondary">
-                    <UserPlusIcon className="w-8 h-8" />
-                  </div>
-                  <div className="stat-title">Discover</div>
-                  <div className="stat-value text-secondary">{recommendedUsers.length}</div>
-                  <div className="stat-desc">New people to meet</div>
-                </div>
-              </div>
             </div>
           </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Link to="/friends" className="card bg-primary text-primary-content shadow-xl hover:shadow-2xl transition-all">
-            <div className="card-body items-center text-center">
-              <UsersIcon className="w-12 h-12 mb-2" />
-              <h2 className="card-title">My Friends</h2>
-              <p>Chat and practice together</p>
+        ) : (
+          <div className="alert bg-base-200 mb-8">
+            <Clock className="size-5" />
+            <div>
+              <p className="font-medium">
+                {!lessonDone && !practiceDone
+                  ? "Complete both tasks to keep your streak"
+                  : lessonDone
+                    ? "One more to go! Practice with someone"
+                    : "One more to go! Complete today's lesson"}
+              </p>
             </div>
-          </Link>
-          <Link to="/notifications" className="card bg-secondary text-secondary-content shadow-xl hover:shadow-2xl transition-all">
-            <div className="card-body items-center text-center">
-              <BellIcon className="w-12 h-12 mb-2" />
-              <h2 className="card-title">Notifications</h2>
-              <p>Friend requests & updates</p>
-            </div>
-          </Link>
-          <Link to="/language-journey" className="card bg-accent text-accent-content shadow-xl hover:shadow-2xl transition-all">
-            <div className="card-body items-center text-center">
-              <MessageSquareIcon className="w-12 h-12 mb-2" />
-              <h2 className="card-title">Start Learning</h2>
-              <p>Begin your language journey</p>
-            </div>
-          </Link>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Feed */}
-          <div className="lg:col-span-2">
-            <EnhancedCreatePost />
-            <EnhancedFeed />
           </div>
+        )}
 
-          {/* Right Column - Friends and Recommendations */}
-          <div className="space-y-6">
-            {/* Friends Section */}
-            <section className="card bg-base-100 shadow-xl p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">Your Friends</h3>
-                <Link to="/friends" className="text-sm text-primary hover:underline">
-                  See all
-                </Link>
-              </div>
-
-              {loadingFriends ? (
-                <div className="flex justify-center py-4">
-                  <span className="loading loading-spinner loading-sm" />
-                </div>
-              ) : friends.length === 0 ? (
-                <p className="text-sm opacity-70 text-center py-4">No friends yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {friends.slice(0, 5).map((friend) => (
-                    <div key={friend._id} className="flex items-center gap-3">
-                      <div className="avatar">
-                        <div className="w-10 rounded-full">
-                          <img src={friend.profilePic} alt={friend.fullName} />
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-sm">{friend.fullName}</p>
-                        <p className="text-xs opacity-70">
-                          {friend.nativeLanguage} → {friend.learningLanguage}
-                        </p>
-                      </div>
+        {/* Quick Practice with Friends */}
+        {friends.length > 0 && !practiceDone && (
+          <div>
+            <h2 className="font-semibold text-lg mb-4">Practice Partners</h2>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {friends.slice(0, 4).map((friend) => (
+                <Link
+                  key={friend._id}
+                  to={`/chat/${friend._id}`}
+                  className="flex flex-col items-center gap-2 min-w-fit"
+                >
+                  <div className="avatar online">
+                    <div className="w-16 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                      <img src={friend.profilePic} alt={friend.fullName} />
                     </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Recommended Users Section */}
-            <section className="card bg-base-100 shadow-xl p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">Discover People</h3>
-                <Link to="/friends" className="text-sm text-primary hover:underline">
-                  See all
+                  </div>
+                  <span className="text-sm font-medium">
+                    {friend.fullName.split(' ')[0]}
+                  </span>
                 </Link>
-              </div>
-
-              {loadingUsers ? (
-                <div className="flex justify-center py-4">
-                  <span className="loading loading-spinner loading-sm" />
+              ))}
+              <Link
+                to="/practice"
+                className="flex flex-col items-center justify-center gap-2 min-w-fit"
+              >
+                <div className="w-16 h-16 rounded-full bg-base-200 flex items-center justify-center">
+                  <ChevronRight className="size-6 opacity-50" />
                 </div>
-              ) : recommendedUsers.length === 0 ? (
-                <p className="text-sm opacity-70 text-center py-4">No recommendations available</p>
-              ) : (
-                <div className="space-y-3">
-                  {recommendedUsers.slice(0, 3).map((user) => {
-                    const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
-
-                    return (
-                      <div key={user._id} className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="avatar">
-                            <div className="w-10 rounded-full">
-                              <img src={user.profilePic} alt={user.fullName} />
-                            </div>
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-sm">{user.fullName}</p>
-                            <p className="text-xs opacity-70">
-                              {user.nativeLanguage} → {user.learningLanguage}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          className={`btn btn-xs ${hasRequestBeenSent ? "btn-disabled" : "btn-primary"}`}
-                          onClick={() => sendRequestMutation(user._id)}
-                          disabled={hasRequestBeenSent || isPending}
-                        >
-                          {hasRequestBeenSent ? "Sent" : "Add"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          </div> {/* end space-y-6 */}
-        </div> {/* end grid */}
-      </div> {/* end container */}
-  </div>
+                <span className="text-sm opacity-70">See all</span>
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

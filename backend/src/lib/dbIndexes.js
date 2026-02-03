@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Post from '../models/Post.js';
 import { AnalyticsEvent } from '../models/Analytics.js';
 import Subscription from '../models/Subscription.js';
+import PasswordResetToken from '../models/PasswordResetToken.js';
 
 /**
  * Create database indexes for optimal query performance
@@ -42,6 +43,22 @@ export const createDatabaseIndexes = async () => {
     await Subscription.collection.createIndex({ stripeSubscriptionId: 1 });
     console.log('✅ Subscription indexes created');
 
+    // PasswordResetToken indexes (TTL index defined in schema)
+    await PasswordResetToken.collection.createIndex({ userId: 1 });
+    await PasswordResetToken.collection.createIndex({ token: 1 }, { unique: true });
+    console.log('✅ PasswordResetToken indexes created');
+
+    // User email verification indexes
+    await User.collection.createIndex({ emailVerificationToken: 1 }, { sparse: true });
+    await User.collection.createIndex({ isEmailVerified: 1 });
+    console.log('✅ Email verification indexes created');
+
+    // Partner matching indexes
+    await User.collection.createIndex({ nativeLanguage: 1, learningLanguage: 1 });
+    await User.collection.createIndex({ learningLanguage: 1, nativeLanguage: 1 });
+    await User.collection.createIndex({ timezone: 1 });
+    console.log('✅ Partner matching indexes created');
+
     console.log('✅ All database indexes created successfully\n');
 
     return true;
@@ -69,6 +86,13 @@ export const listIndexes = async () => {
 
     const subscriptionIndexes = await Subscription.collection.indexes();
     console.log('Subscription indexes:', subscriptionIndexes.map(i => i.name));
+
+    try {
+      const passwordResetIndexes = await PasswordResetToken.collection.indexes();
+      console.log('PasswordResetToken indexes:', passwordResetIndexes.map(i => i.name));
+    } catch (e) {
+      console.log('PasswordResetToken collection not yet created');
+    }
 
     console.log('\n');
   } catch (error) {
