@@ -88,7 +88,7 @@ const vocabularyReviewSchema = new mongoose.Schema({
     // Source of the word (lesson, user-added, etc.)
     source: {
         type: String,
-        enum: ['lesson', 'conversation', 'user', 'ai-tutor', 'import'],
+        enum: ['lesson', 'conversation', 'user', 'ai-tutor', 'import', 'starter'],
         default: 'user'
     },
     sourceId: {

@@ -2,25 +2,41 @@ import nodemailer from 'nodemailer';
 
 /**
  * Email service using Nodemailer
+ * Supports Resend (recommended) via SMTP, or any custom EMAIL_HOST config.
+ * Sign up at resend.com (free: 3000 emails/month) and add RESEND_API_KEY to .env
  */
 
 // Create transporter
 const createTransporter = () => {
-  // For development, use console logging or Ethereal (test email service)
-  if (process.env.NODE_ENV === 'development' && !process.env.EMAIL_HOST) {
-    console.log('⚠️  Email service not configured. Emails will be logged to console.');
-    return null;
+  // Resend SMTP (preferred - set RESEND_API_KEY in .env)
+  if (process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.startsWith('re_your')) {
+    return nodemailer.createTransport({
+      host: 'smtp.resend.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'resend',
+        pass: process.env.RESEND_API_KEY,
+      },
+    });
   }
 
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT || 587,
-    secure: process.env.EMAIL_PORT === '465', // true for 465, false for other ports
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
+  // Custom SMTP (fallback)
+  if (process.env.EMAIL_HOST) {
+    return nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: parseInt(process.env.EMAIL_PORT) || 587,
+      secure: process.env.EMAIL_PORT === '465',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+  }
+
+  // Dev fallback: log to console
+  console.log('⚠️  Email service not configured. Add RESEND_API_KEY to .env to enable real emails.');
+  return null;
 };
 
 const transporter = createTransporter();
@@ -40,7 +56,7 @@ export const sendEmail = async (options) => {
     }
 
     const mailOptions = {
-      from: `${process.env.EMAIL_FROM_NAME || 'Social Platform'} <${process.env.EMAIL_FROM}>`,
+      from: `${process.env.EMAIL_FROM_NAME || 'Streamify'} <${process.env.EMAIL_FROM}>`,
       to,
       subject,
       text,

@@ -5,10 +5,8 @@ import AITutorSession from "../models/AITutorSession.js";
 import User from "../models/User.js";
 import { generateAIResponse, MODELS } from "../lib/ai.js";
 import {
-  getAllPersonalities,
-  getPersonality,
   getSystemPrompt,
-  getConversationStarter,
+  getPracticeStarter,
   formatFeedback
 } from "../lib/aiPersonalities.js";
 
@@ -16,60 +14,27 @@ const router = express.Router();
 
 // AI Tutor service with real Hugging Face integration
 class AITutorService {
-  static async generateResponse(userMessage, context, sessionType, conversationHistory = [], personality = 'friendly') {
+  static async generateResponse(userMessage, context, sessionType, conversationHistory = []) {
     const { userLanguages, currentTopic, userLevel, strugglingAreas } = context;
 
-    // Get personality-specific base prompt
-    const personalityData = getPersonality(personality);
-    let systemPrompt = getSystemPrompt(personality, {
+    // Get supportive coach system prompt
+    let systemPrompt = getSystemPrompt({
       language: userLanguages?.learning,
       level: userLevel,
       topic: currentTopic
     });
 
-    // Append session-type specific instructions
+    // Add language learning context
+    systemPrompt += `\n\nYou are helping a ${userLevel} level student learn ${userLanguages?.learning || 'a new language'} (their native language is ${userLanguages?.native || 'English'}).
 
-    if (sessionType === 'language_help') {
-      systemPrompt += `\n\nYou are also an expert language tutor helping a ${userLevel} level student learn ${userLanguages?.learning || 'a new language'} (their native language is ${userLanguages?.native || 'English'}).
-
-Additional teaching guidelines:
-- Break down complex grammar into simple explanations
-- Use examples from their native language when helpful
-- Provide actionable practice suggestions
-- Keep responses concise (2-3 paragraphs max)
+Your focus:
+- Provide feedback on their practice attempt
+- Correct mistakes with clear explanations
+- Suggest better phrasing when appropriate
+- Keep responses very concise (2-3 sentences)
+- Adapt difficulty to their level
 
 ${strugglingAreas?.length > 0 ? `The student struggles with: ${strugglingAreas.join(', ')}` : ''}`;
-    }
-    else if (sessionType === 'coding_help') {
-      systemPrompt += `\n\nYou are also a patient programming mentor helping a ${userLevel} level developer.
-
-Additional teaching guidelines:
-- Explain concepts step-by-step
-- Use simple analogies when explaining algorithms
-- Provide code examples when relevant
-- Ask clarifying questions before diving deep
-- Keep responses focused (2-3 paragraphs)
-
-${strugglingAreas?.length > 0 ? `Areas the student finds challenging: ${strugglingAreas.join(', ')}` : ''}`;
-    }
-    else if (sessionType === 'career_guidance') {
-      systemPrompt += `\n\nYou are also a tech career advisor with expertise in global job markets. The student knows ${userLanguages?.native || 'one language'} and is learning ${userLanguages?.learning || 'another language'}, which gives them unique advantages.
-
-Additional guidance:
-- Provide practical, actionable career advice
-- Highlight opportunities that match their language skills
-- Be realistic but encouraging
-- Keep advice concise and specific`;
-    }
-    else {
-      systemPrompt += `\n\nYou help students with:
-- Language learning (grammar, pronunciation, conversation)
-- Programming and algorithms
-- Career planning in tech
-- Study strategies and motivation
-
-Be conversational and concise in your responses.`;
-    }
 
     // Build conversation context (last 4 messages for context)
     const recentHistory = conversationHistory.slice(-4);
@@ -88,8 +53,8 @@ Be conversational and concise in your responses.`;
       maxTokens: 400
     });
 
-    // Generate contextual suggestions based on session type
-    const suggestions = this.generateSuggestions(sessionType, userMessage, userLevel);
+    // Generate contextual suggestions
+    const suggestions = this.generateSuggestions(userMessage, userLevel);
 
     return {
       content: aiContent,
@@ -97,38 +62,20 @@ Be conversational and concise in your responses.`;
     };
   }
 
-  static generateSuggestions(sessionType, userMessage, userLevel) {
-    // Generate dynamic suggestions based on context
+  static generateSuggestions(userMessage, userLevel) {
+    // Generate simple practice suggestions
     const lowerMessage = userMessage.toLowerCase();
 
-    if (sessionType === 'language_help') {
-      if (lowerMessage.includes('grammar')) {
-        return ['Verb conjugations', 'Sentence structure', 'Tenses', 'Common mistakes'];
-      }
-      if (lowerMessage.includes('pronunciation')) {
-        return ['Phonetic exercises', 'Practice phrases', 'Audio resources', 'Tongue twisters'];
-      }
-      if (lowerMessage.includes('vocabulary')) {
-        return ['Word lists', 'Flashcards', 'Spaced repetition', 'Usage examples'];
-      }
-      return ['Grammar help', 'Vocabulary building', 'Conversation practice', 'Cultural tips'];
+    if (lowerMessage.includes('grammar')) {
+      return ['Try using this in a sentence', 'Practice similar structures', 'Review the rule'];
     }
-
-    if (sessionType === 'coding_help') {
-      if (lowerMessage.includes('algorithm') || lowerMessage.includes('data structure')) {
-        return ['Time complexity', 'Space complexity', 'Implementation tips', 'Practice problems'];
-      }
-      if (lowerMessage.includes('debug') || lowerMessage.includes('error')) {
-        return ['Common errors', 'Debugging strategies', 'Testing approaches', 'Best practices'];
-      }
-      return ['Algorithm help', 'Code review', 'Best practices', 'Similar problems'];
+    if (lowerMessage.includes('pronunciation')) {
+      return ['Break it into syllables', 'Listen and repeat', 'Practice slowly'];
     }
-
-    if (sessionType === 'career_guidance') {
-      return ['Skill assessment', 'Job market insights', 'Portfolio building', 'Interview prep'];
+    if (lowerMessage.includes('vocabulary')) {
+      return ['Use it in context', 'Find synonyms', 'Make flashcards'];
     }
-
-    return ['Language help', 'Coding assistance', 'Career guidance', 'Study tips'];
+    return ['Try again', 'Practice more', 'Keep going'];
   }
 
   static generateContextualTips(userLevel, strugglingAreas) {
@@ -162,85 +109,45 @@ Be conversational and concise in your responses.`;
   }
 }
 
-// Get available AI tutor personalities
-router.get("/personalities", protectRoute, async (req, res) => {
-  try {
-    const personalities = getAllPersonalities();
-    const user = await User.findById(req.user._id).select('aiPreferences');
+// Note: AI tutor personalities removed - using single supportive coach only
 
-    res.json({
-      success: true,
-      personalities,
-      currentPreference: user?.aiPreferences?.preferredTutor || 'friendly'
-    });
-  } catch (error) {
-    console.error("Error fetching personalities:", error);
-    res.status(500).json({ message: "Failed to fetch personalities" });
-  }
-});
-
-// Update user's preferred AI tutor personality
-router.post("/preferences", protectRoute, async (req, res) => {
-  try {
-    const { preferredTutor } = req.body;
-    const validPersonalities = ['friendly', 'professional', 'challenging', 'playful'];
-
-    if (!validPersonalities.includes(preferredTutor)) {
-      return res.status(400).json({ message: "Invalid personality type" });
-    }
-
-    await User.findByIdAndUpdate(req.user._id, {
-      'aiPreferences.preferredTutor': preferredTutor
-    });
-
-    res.json({
-      success: true,
-      message: "AI tutor preference updated",
-      preferredTutor
-    });
-  } catch (error) {
-    console.error("Error updating AI preference:", error);
-    res.status(500).json({ message: "Failed to update preference" });
-  }
-});
-
-// Start new AI tutor session
+// Start new AI tutor session (for daily task practice)
 router.post("/start-session", protectRoute, async (req, res) => {
   try {
-    const { sessionType, initialMessage, personality } = req.body;
+    const { sessionType, initialMessage } = req.body;
     const userId = req.user._id;
 
-    if (!initialMessage || !sessionType) {
-      return res.status(400).json({ message: "Initial message and session type are required" });
+    if (!initialMessage) {
+      return res.status(400).json({ message: "Initial message is required" });
     }
 
-    // Get user context and preferred personality
+    // Only support language_help session type (tied to daily tasks)
+    const validSessionType = sessionType === 'language_help' ? sessionType : 'language_help';
+
+    // Get user context
     const user = await User.findById(userId);
-    const userPersonality = personality || user?.aiPreferences?.preferredTutor || 'friendly';
 
     const context = {
       userLanguages: {
         native: user.nativeLanguage || 'English',
         learning: user.learningLanguage || 'Spanish'
       },
-      userLevel: user.skillLevel || 'beginner',
-      strugglingAreas: user.strugglingAreas || [],
-      personality: userPersonality
+      userLevel: user.proficiencyLevel || user.skillLevel || 'beginner',
+      strugglingAreas: user.strugglingAreas || []
     };
 
-    // Generate AI response using Hugging Face with personality
+    // Generate AI response using supportive coach
     const aiResponse = await AITutorService.generateResponse(
       initialMessage,
       context,
-      sessionType,
-      [],
-      userPersonality
+      validSessionType,
+      []
     );
 
     // Create new session
     const session = new AITutorSession({
       userId,
-      sessionType,
+      sessionType: validSessionType,
       messages: [
         {
           role: 'user',

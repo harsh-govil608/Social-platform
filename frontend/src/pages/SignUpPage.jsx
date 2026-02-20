@@ -87,7 +87,7 @@ const SignUpPage = () => {
                       required
                     />
                     <p className="text-xs opacity-70 mt-1">
-                      Password must be at least 6 characters long
+                      Password must be at least 6 characters and contain an uppercase letter, lowercase letter, and number
                     </p>
                   </div>
 

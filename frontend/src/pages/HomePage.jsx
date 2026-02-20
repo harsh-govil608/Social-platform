@@ -2,12 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import {
   Flame,
-  BookOpen,
+  CalendarCheck,
   MessageCircle,
   ChevronRight,
   CheckCircle2,
   Clock,
-  Sparkles
+  Sparkles,
+  BookOpen,
+  Users,
+  Brain,
 } from "lucide-react";
 import useAuthUser from "../hooks/useAuthUser";
 import { getUserFriends } from "../lib/api";
@@ -21,22 +24,21 @@ const HomePage = () => {
     queryFn: getUserFriends,
   });
 
-  const { data: activity } = useQuery({
-    queryKey: ["todayActivity"],
+  const { data: todayTask } = useQuery({
+    queryKey: ["todayTask"],
     queryFn: async () => {
       try {
-        const res = await axiosInstance.get("/activity/today");
+        const res = await axiosInstance.get("/daily-task/today");
         return res.data;
       } catch {
-        return { lessonCompleted: false, practiceCompleted: false };
+        return { task: null, currentStep: "taskStart" };
       }
     },
   });
 
   const streak = authUser?.streak || 0;
-  const lessonDone = activity?.lessonCompleted || false;
-  const practiceDone = activity?.practiceCompleted || false;
-  const allDone = lessonDone && practiceDone;
+  const taskCompleted = todayTask?.task?.status === "completed";
+  const taskStep = todayTask?.currentStep || "taskStart";
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-base-100">
@@ -47,9 +49,9 @@ const HomePage = () => {
             Hey, {authUser?.fullName?.split(' ')[0]}!
           </h1>
           <p className="text-base-content/70">
-            {allDone
+            {taskCompleted
               ? "Amazing work today! Come back tomorrow."
-              : "Complete your daily practice to keep your streak."}
+              : "Did you show up today? Complete your daily task."}
           </p>
         </div>
 
@@ -66,95 +68,140 @@ const HomePage = () => {
                   <p className="text-sm opacity-70">day streak</p>
                 </div>
               </div>
-              {!allDone && (
+              {!taskCompleted && (
                 <div className="text-right">
                   <p className="text-sm font-medium">Today's goal</p>
-                  <p className="text-xs opacity-70">Learn + Practice</p>
+                  <p className="text-xs opacity-70">Just 10 minutes</p>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Daily Tasks */}
-        <h2 className="font-semibold text-lg mb-4">Today's Tasks</h2>
-        <div className="space-y-4 mb-8">
-          {/* Learn Task */}
-          <Link
-            to="/language-journey"
-            className={`card transition-all ${
-              lessonDone
-                ? "bg-success/10 border-success/30 border"
-                : "bg-base-200 hover:bg-base-300"
-            }`}
-          >
-            <div className="card-body p-5 flex-row items-center justify-between">
+        {/* Daily Task - Primary CTA */}
+        <h2 className="font-semibold text-lg mb-4">Today's Task</h2>
+        <Link
+          to="/daily-task"
+          className={`card transition-all mb-6 ${
+            taskCompleted
+              ? "bg-success/10 border-success/30 border"
+              : "bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/30 hover:border-primary/60"
+          }`}
+        >
+          <div className="card-body p-6">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl ${
-                  lessonDone ? "bg-success/20" : "bg-primary/10"
+                <div className={`p-4 rounded-2xl ${
+                  taskCompleted ? "bg-success/20" : "bg-primary/20"
                 }`}>
-                  {lessonDone ? (
-                    <CheckCircle2 className="size-7 text-success" />
+                  {taskCompleted ? (
+                    <CheckCircle2 className="size-8 text-success" />
                   ) : (
-                    <BookOpen className="size-7 text-primary" />
+                    <CalendarCheck className="size-8 text-primary" />
                   )}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">
-                    {lessonDone ? "Lesson Complete!" : "Today's Lesson"}
+                  <h3 className="font-bold text-xl">
+                    {taskCompleted ? "Completed!" : "Start Daily Task"}
                   </h3>
                   <p className="text-sm opacity-70">
-                    {lessonDone
-                      ? "Great job learning today"
-                      : `Learn new ${authUser?.learningLanguage || "words"} vocabulary`}
+                    {taskCompleted
+                      ? "You showed up today. Streak is safe!"
+                      : taskStep === "taskStart"
+                        ? "5-10 minute guided practice"
+                        : `Continue from: ${taskStep === "aiPractice" ? "AI Practice" : taskStep === "partnerOffer" ? "Partner Step" : "Finish Up"}`}
                   </p>
                 </div>
               </div>
-              {!lessonDone && <ChevronRight className="size-5 opacity-50" />}
+              {!taskCompleted && <ChevronRight className="size-6 text-primary" />}
+            </div>
+          </div>
+        </Link>
+
+        {/* Quick Actions */}
+        <h2 className="font-semibold text-lg mb-4">Quick Actions</h2>
+        <div className="space-y-3 mb-8">
+          <Link
+            to="/vocabulary"
+            className="card bg-base-200 hover:bg-base-300 transition-colors"
+          >
+            <div className="card-body p-4 flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-secondary/10 p-3 rounded-xl">
+                  <BookOpen className="size-6 text-secondary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Vocabulary Review</h3>
+                  <p className="text-sm opacity-70">Spaced repetition flashcards</p>
+                </div>
+              </div>
+              <ChevronRight className="size-5 opacity-50" />
             </div>
           </Link>
 
-          {/* Practice Task */}
           <Link
-            to="/practice"
-            className={`card transition-all ${
-              practiceDone
-                ? "bg-success/10 border-success/30 border"
-                : "bg-base-200 hover:bg-base-300"
-            }`}
+            to="/ai-tutor"
+            className="card bg-base-200 hover:bg-base-300 transition-colors"
           >
-            <div className="card-body p-5 flex-row items-center justify-between">
+            <div className="card-body p-4 flex-row items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl ${
-                  practiceDone ? "bg-success/20" : "bg-secondary/10"
-                }`}>
-                  {practiceDone ? (
-                    <CheckCircle2 className="size-7 text-success" />
-                  ) : (
-                    <MessageCircle className="size-7 text-secondary" />
-                  )}
+                <div className="bg-accent/10 p-3 rounded-xl">
+                  <Brain className="size-6 text-accent" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">
-                    {practiceDone ? "Practice Complete!" : "Practice Speaking"}
-                  </h3>
+                  <h3 className="font-semibold">AI Tutor</h3>
+                  <p className="text-sm opacity-70">Get corrections & suggestions</p>
+                </div>
+              </div>
+              <ChevronRight className="size-5 opacity-50" />
+            </div>
+          </Link>
+
+          <Link
+            to="/conversation-practice"
+            className="card bg-base-200 hover:bg-base-300 transition-colors"
+          >
+            <div className="card-body p-4 flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-info/10 p-3 rounded-xl">
+                  <MessageCircle className="size-6 text-info" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Conversation Practice</h3>
+                  <p className="text-sm opacity-70">5-minute AI scenario</p>
+                </div>
+              </div>
+              <ChevronRight className="size-5 opacity-50" />
+            </div>
+          </Link>
+
+          <Link
+            to="/find-partners"
+            className="card bg-base-200 hover:bg-base-300 transition-colors"
+          >
+            <div className="card-body p-4 flex-row items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-primary/10 p-3 rounded-xl">
+                  <Users className="size-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Find a Partner</h3>
                   <p className="text-sm opacity-70">
-                    {practiceDone
-                      ? "You practiced with someone today"
-                      : friends.length > 0
-                        ? `Chat with one of your ${friends.length} friends`
-                        : "5-minute conversation practice"}
+                    {friends.length > 0
+                      ? `${friends.length} friends available`
+                      : "Connect with learners"}
                   </p>
                 </div>
               </div>
-              {!practiceDone && <ChevronRight className="size-5 opacity-50" />}
+              <ChevronRight className="size-5 opacity-50" />
             </div>
           </Link>
+
         </div>
 
         {/* Status Message */}
-        {allDone ? (
-          <div className="card bg-gradient-to-r from-primary to-secondary text-primary-content mb-8">
+        {taskCompleted ? (
+          <div className="card bg-gradient-to-r from-primary to-secondary text-primary-content">
             <div className="card-body items-center text-center py-8">
               <Sparkles className="size-12 mb-2" />
               <h3 className="text-xl font-bold">All done for today!</h3>
@@ -164,50 +211,13 @@ const HomePage = () => {
             </div>
           </div>
         ) : (
-          <div className="alert bg-base-200 mb-8">
+          <div className="alert bg-base-200">
             <Clock className="size-5" />
             <div>
               <p className="font-medium">
-                {!lessonDone && !practiceDone
-                  ? "Complete both tasks to keep your streak"
-                  : lessonDone
-                    ? "One more to go! Practice with someone"
-                    : "One more to go! Complete today's lesson"}
+                Complete your daily task to keep your streak
               </p>
-            </div>
-          </div>
-        )}
-
-        {/* Quick Practice with Friends */}
-        {friends.length > 0 && !practiceDone && (
-          <div>
-            <h2 className="font-semibold text-lg mb-4">Practice Partners</h2>
-            <div className="flex gap-4 overflow-x-auto pb-2">
-              {friends.slice(0, 4).map((friend) => (
-                <Link
-                  key={friend._id}
-                  to={`/chat/${friend._id}`}
-                  className="flex flex-col items-center gap-2 min-w-fit"
-                >
-                  <div className="avatar online">
-                    <div className="w-16 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-                      <img src={friend.profilePic} alt={friend.fullName} />
-                    </div>
-                  </div>
-                  <span className="text-sm font-medium">
-                    {friend.fullName.split(' ')[0]}
-                  </span>
-                </Link>
-              ))}
-              <Link
-                to="/practice"
-                className="flex flex-col items-center justify-center gap-2 min-w-fit"
-              >
-                <div className="w-16 h-16 rounded-full bg-base-200 flex items-center justify-center">
-                  <ChevronRight className="size-6 opacity-50" />
-                </div>
-                <span className="text-sm opacity-70">See all</span>
-              </Link>
+              <p className="text-sm opacity-70">Just 10 minutes. You can do it!</p>
             </div>
           </div>
         )}

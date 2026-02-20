@@ -1,6 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { uploadToCloudinary, isConfigured as isCloudinaryConfigured } from '../lib/cloudinary.js';
 
 // Create uploads directory if it doesn't exist
 const uploadDir = 'uploads';
@@ -123,6 +124,26 @@ export const generateVideoThumbnail = async (videoPath) => {
     // In production, use ffmpeg to generate actual thumbnail
     // For now, return a placeholder
     return '/api/placeholder/video-thumbnail.jpg';
+};
+
+/**
+ * Upload a file to Cloudinary (when configured) or serve from local disk.
+ * Use this in controllers after multer has saved the file locally.
+ * @param {object} file - The file object from req.file (multer)
+ * @param {object} options - Cloudinary options (folder, transformation)
+ * @returns {Promise<string>} - Public URL of the uploaded file
+ */
+export const processUpload = async (file, options = {}) => {
+    if (isCloudinaryConfigured()) {
+        const result = await uploadToCloudinary(file.path, options);
+        // Delete the local file after uploading to Cloudinary
+        if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+        }
+        return result.url;
+    }
+    // Fallback: return local path (dev only)
+    return `/uploads/${path.relative('uploads', file.path).replace(/\\/g, '/')}`;
 };
 
 export default upload;

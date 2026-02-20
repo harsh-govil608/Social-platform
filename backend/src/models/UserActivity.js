@@ -242,8 +242,7 @@ userActivitySchema.methods.calculateWeeklyStats = function() {
   return stats;
 };
 
-// Index for queries
-userActivitySchema.index({ user: 1 });
+// Index for queries (user:1 is implicit from unique:true on the user field)
 userActivitySchema.index({ 'dailySessions.date': -1 });
 userActivitySchema.index({ 'currentSession.isActive': 1 });
 userActivitySchema.index({ 'gamification.xp': -1 });

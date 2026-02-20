@@ -1,14 +1,15 @@
 import { Link, useLocation } from "react-router";
-import { BookOpen, MessageCircle, Flame, User } from "lucide-react";
+import { CalendarCheck, MessageCircle, Newspaper, Trophy, User } from "lucide-react";
 
 const MobileNav = () => {
   const location = useLocation();
   const currentPath = location.pathname;
 
   const navItems = [
-    { path: '/', icon: BookOpen, label: 'Learn' },
+    { path: '/daily-task', icon: CalendarCheck, label: 'Daily' },
+    { path: '/feed', icon: Newspaper, label: 'Feed' },
     { path: '/practice', icon: MessageCircle, label: 'Practice' },
-    { path: '/progress', icon: Flame, label: 'Progress' },
+    { path: '/leaderboard', icon: Trophy, label: 'Ranks' },
     { path: '/profile', icon: User, label: 'Profile' },
   ];
 

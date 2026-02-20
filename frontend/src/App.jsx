@@ -6,9 +6,14 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
 import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
 import VocabularyReviewPage from "./pages/VocabularyReviewPage.jsx";
-import ContestsPage from "./pages/ContestsPage.jsx";
-import ContestDetailPage from "./pages/ContestDetailPage.jsx";
-import CertificatesPage from "./pages/CertificatesPage.jsx";
+import FeedPage from "./pages/FeedPage.jsx";
+import AchievementsPage from "./pages/AchievementsPage.jsx";
+import LeaderboardPage from "./pages/LeaderboardPage.jsx";
+import LanguageJourneyPage from "./pages/LanguageJourneyPage.jsx";
+// Beta: disabled
+// import ContestsPage from "./pages/ContestsPage.jsx";
+// import ContestDetailPage from "./pages/ContestDetailPage.jsx";
+// import CertificatesPage from "./pages/CertificatesPage.jsx";
 import FindPartnersPage from "./pages/FindPartnersPage.jsx";
 import NotificationPage from "./pages/NotificationPage.jsx";
 import FriendsPage from "./pages/FriendsPage.jsx";
@@ -16,20 +21,23 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import UserProfilePage from "./pages/UserProfilePage.jsx";
 import CallPage from "./pages/CallPage.jsx";
 import ChatPage from "./pages/ChatPage.jsx";
-import OnboardingPage from "./pages/OnBoardingPage.jsx";
-import EnhancedLanguageJourneyPage from "./pages/EnhancedLanguageJourneyPage.jsx";
+import OnboardingPage from "./pages/OnboardingPage.jsx";
+// import EnhancedLanguageJourneyPage from "./pages/EnhancedLanguageJourneyPage.jsx"; // Beta: disabled
 import AITutorPage from "./pages/AITutorPage.jsx";
 import ConversationPracticePage from "./pages/ConversationPracticePage.jsx";
-import PricingPage from "./pages/PricingPage.jsx";
-import CheckoutPage from "./pages/CheckoutPage.jsx";
-import SubscriptionPage from "./pages/SubscriptionPage.jsx";
-import AchievementsPage from "./pages/AchievementsPage.jsx";
-import LeaderboardPage from "./pages/LeaderboardPage.jsx";
-import ReferralPage from "./pages/ReferralPage.jsx";
-import AdminDashboardPage from "./pages/AdminDashboardPage.jsx";
+// Beta: disabled
+// import PricingPage from "./pages/PricingPage.jsx";
+// import CheckoutPage from "./pages/CheckoutPage.jsx";
+// import SubscriptionPage from "./pages/SubscriptionPage.jsx";
+// import AchievementsPage from "./pages/AchievementsPage.jsx";
+// import LeaderboardPage from "./pages/LeaderboardPage.jsx";
+// import ReferralPage from "./pages/ReferralPage.jsx";
+// import AdminDashboardPage from "./pages/AdminDashboardPage.jsx";
 // New focused pages
 import PracticePage from "./pages/PracticePage.jsx";
 import ProgressPage from "./pages/ProgressPage.jsx";
+import DailyTaskPage from "./pages/DailyTaskPage.jsx";
+// import CodeArenaPage from "./pages/CodeArenaPage.jsx"; // Beta: disabled
 import { Toaster } from "react-hot-toast";
 import PageLoader from "./components/PageLoader.jsx";
 import useAuthUser from "./hooks/useAuthUser.js";
@@ -57,6 +65,44 @@ const App = () => {
               isAuthenticated && isOnboarded ? (
                 <Layout showSidebar={true}>
                   <HomePage />
+                </Layout>
+              ) : (
+                <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+              )
+            }
+          />
+          {/* Redirect /home to root for convenience */}
+          <Route path="/home" element={<Navigate to="/" />} />
+          <Route
+            path="/feed"
+            element={
+              isAuthenticated && isOnboarded ? (
+                <Layout showSidebar={true}>
+                  <FeedPage />
+                </Layout>
+              ) : (
+                <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+              )
+            }
+          />
+          <Route
+            path="/achievements"
+            element={
+              isAuthenticated && isOnboarded ? (
+                <Layout showSidebar={true}>
+                  <AchievementsPage />
+                </Layout>
+              ) : (
+                <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+              )
+            }
+          />
+          <Route
+            path="/leaderboard"
+            element={
+              isAuthenticated && isOnboarded ? (
+                <Layout showSidebar={true}>
+                  <LeaderboardPage />
                 </Layout>
               ) : (
                 <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
@@ -116,6 +162,18 @@ const App = () => {
           }
         />
         {/* New focused routes */}
+        <Route
+          path="/daily-task"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <DailyTaskPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
         <Route
           path="/practice"
           element={
@@ -207,8 +265,8 @@ const App = () => {
           path="/language-journey"
           element={
             isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={false}>
-                <EnhancedLanguageJourneyPage />
+              <Layout showSidebar={true}>
+                <LanguageJourneyPage />
               </Layout>
             ) : (
               <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
@@ -255,6 +313,7 @@ const App = () => {
           }
         />
 
+        {/* Beta: disabled
         <Route
           path="/contests"
           element={
@@ -290,7 +349,7 @@ const App = () => {
               <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
             )
           }
-        />
+        /> */}
         <Route
           path="/find-partners"
           element={
@@ -304,87 +363,12 @@ const App = () => {
           }
         />
 
-        {/* Monetization & Gamification Routes */}
-        <Route
-          path="/pricing"
-          element={<PricingPage />}
-        />
-
-        <Route
-          path="/checkout"
-          element={
-            isAuthenticated ? (
-              <CheckoutPage />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-
-        <Route
-          path="/subscription"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <SubscriptionPage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
-
-        <Route
-          path="/achievements"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <AchievementsPage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
-
-        <Route
-          path="/leaderboard"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <LeaderboardPage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
-
-        <Route
-          path="/referral"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <ReferralPage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
-
-        <Route
-          path="/admin"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <AdminDashboardPage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
+        {/* Beta: Monetization Routes disabled
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/checkout" element={isAuthenticated ? <CheckoutPage /> : <Navigate to="/login" />} />
+        <Route path="/subscription" element={isAuthenticated && isOnboarded ? <Layout showSidebar={true}><SubscriptionPage /></Layout> : <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />} />
+        <Route path="/referral" element={isAuthenticated && isOnboarded ? <Layout showSidebar={true}><ReferralPage /></Layout> : <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />} />
+        */}
         </Routes>
         <Toaster />
       </div>

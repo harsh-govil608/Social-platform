@@ -28,6 +28,14 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Uploads (local dev only - use Cloudinary in production)
+uploads/
+backend/uploads/
+
+# Windows artifacts
+nul
+Thumbs.db
+
 # Misc
 *.log
 *.swp
@@ -35,3 +43,11 @@ Thumbs.db
 *~
 .temp/
 .cache/
+
+# Test coverage
+coverage/
+backend/coverage/
+frontend/coverage/
+
+# Claude Code
+.claude/

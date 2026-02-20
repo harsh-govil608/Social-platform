@@ -181,6 +181,11 @@ const userSchema=new mongoose.Schema({
             default: 'both'
         }
     },
+    // Daily availability from onboarding
+    dailyAvailability: {
+        type: String,
+        enum: ['5-10', '10-20', '20-30', '30+'],
+    },
     // AI tutor preferences
     aiPreferences: {
         preferredTutor: {

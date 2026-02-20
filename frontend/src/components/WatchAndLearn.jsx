@@ -246,9 +246,16 @@ const WatchAndLearn = ({
 
   // Handle video completion
   const handleVideoComplete = (video) => {
-    const earnedXP = video.xp;
-    const earnedCoins = video.coins;
-    
+    const earnedXP = video.xpReward || video.xp || 0;
+    const earnedCoins = video.coins || Math.round(earnedXP / 5);
+
+    // Call backend mutation to save progress
+    completeVideoMutation.mutate({
+      videoId: video._id || video.id,
+      watchProgress: 100,
+      completed: true,
+    });
+
     confetti({
       particleCount: 100,
       spread: 70,
@@ -264,7 +271,7 @@ const WatchAndLearn = ({
     );
 
     onVideoComplete?.({
-      videoId: video.id,
+      videoId: video._id || video.id,
       xp: earnedXP,
       coins: earnedCoins,
       duration: video.duration

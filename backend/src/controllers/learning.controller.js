@@ -4,6 +4,7 @@ import LearningVideo from "../models/learningVideo.model.js";
 import LearningProgress from "../models/LearningProgress.js";
 import User from "../models/User.js";
 import UserActivity from "../models/UserActivity.js";
+import { CHALLENGE_SEEDS, VOCABULARY_SEEDS, VIDEO_SEEDS } from "../data/seedChallengesAndVocab.js";
 
 // Helper function to update XP and Coins in both LearningProgress and UserActivity
 const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
@@ -69,20 +70,21 @@ export const getLearningProgress = async (req, res) => {
     const user = await User.findById(userId);
     
     let progress = await LearningProgress.findOne({ user: userId });
-    
+
     if (!progress) {
-      // Create new progress record
       progress = await LearningProgress.create({
         user: userId,
         totalXP: 0,
         currentLevel: 1,
-        currentStreak: 0
+        currentStreak: 0,
       });
     }
-    
+
     // Update streak if needed
-    progress.updateStreak();
-    await progress.save();
+    if (typeof progress.updateStreak === 'function') {
+      progress.updateStreak();
+      await progress.save();
+    }
     
     res.status(200).json(progress);
   } catch (error) {
@@ -115,11 +117,22 @@ export const getDailyChallenges = async (req, res) => {
     console.log("User level:", level);
     
     // Get ALL challenges for the language to show variety
-    const allChallenges = await DailyChallenge.find({ 
-      language, 
-      isActive: true 
+    let allChallenges = await DailyChallenge.find({
+      language,
+      isActive: true
     });
-    
+
+    // Auto-seed if empty
+    if (allChallenges.length === 0) {
+      const seedData = CHALLENGE_SEEDS[language] || CHALLENGE_SEEDS["english"];
+      if (seedData) {
+        for (const challenge of seedData) {
+          try { await DailyChallenge.create({ ...challenge, language }); } catch (e) { /* skip duplicates */ }
+        }
+        allChallenges = await DailyChallenge.find({ language, isActive: true });
+      }
+    }
+
     console.log("Total challenges in DB for", language, ":", allChallenges.length);
     
     // Return all available challenges (frontend will handle display)
@@ -141,12 +154,12 @@ export const getDailyChallenges = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const completedToday = progress?.dailyChallenges?.completed?.filter(c => {
-      const completedDate = new Date(c.completedAt);
+    const completedToday = (progress?.dailyChallenges || []).filter(c => {
+      const completedDate = new Date(c.completedAt || c.date);
       completedDate.setHours(0, 0, 0, 0);
       return completedDate.getTime() === today.getTime();
-    }) || [];
-    
+    });
+
     const challengesWithStatus = challenges.map(challenge => ({
       ...challenge.toObject(),
       isCompleted: completedToday.some(c => c.challengeId === challenge._id.toString())
@@ -167,12 +180,10 @@ export const completeDailyChallenge = async (req, res) => {
 
     let progress = await LearningProgress.findOne({ user: userId });
     if (!progress) {
-      // Create new progress if it doesn't exist
       progress = await LearningProgress.create({
         user: userId,
         totalXP: 0,
         currentLevel: 1,
-        dailyChallenges: { completed: [] }
       });
     }
 
@@ -185,20 +196,18 @@ export const completeDailyChallenge = async (req, res) => {
     const xpEarned = Math.floor((score / 100) * challenge.xpReward);
     const coinsEarned = Math.floor((score / 100) * (challenge.coins || Math.round(challenge.xpReward / 5)));
 
-    // Add to completed challenges - Initialize if needed
+    // Add to completed challenges (flat array in LearningProgress schema)
     if (!progress.dailyChallenges) {
-      progress.dailyChallenges = { completed: [] };
-    }
-    if (!progress.dailyChallenges.completed) {
-      progress.dailyChallenges.completed = [];
+      progress.dailyChallenges = [];
     }
 
-    progress.dailyChallenges.completed.push({
+    progress.dailyChallenges.push({
       challengeId,
-      completedAt: new Date(),
-      score,
+      title: challenge.title,
+      completed: true,
       xpEarned,
-      coinsEarned
+      completedAt: new Date(),
+      date: new Date(),
     });
 
     // Update XP
@@ -215,12 +224,12 @@ export const completeDailyChallenge = async (req, res) => {
     res.status(200).json({
       xpEarned,
       coinsEarned,
-      totalXP: progress.totalXP,
-      newTotalXP: progress.totalXP,
-      currentLevel: progress.currentLevel,
-      newLevel: progress.currentLevel,
-      streak: progress.currentStreak,
-      newStreak: progress.currentStreak
+      totalXP: progress.totalXP || 0,
+      newTotalXP: progress.totalXP || 0,
+      currentLevel: progress.currentLevel || 1,
+      newLevel: progress.currentLevel || 1,
+      streak: progress.currentStreak || 0,
+      newStreak: progress.currentStreak || 0,
     });
   } catch (error) {
     console.error("Error completing challenge:", error);
@@ -244,8 +253,19 @@ export const getDailyVocabulary = async (req, res) => {
     }
     
     // Get 10 random words for the day
-    const words = await Vocabulary.getDailyWords(language, level, [], 10);
-    
+    let words = await Vocabulary.getDailyWords(language, level, [], 10);
+
+    // Auto-seed if empty
+    if (words.length === 0) {
+      const seedData = VOCABULARY_SEEDS[language] || VOCABULARY_SEEDS["english"];
+      if (seedData) {
+        for (const word of seedData) {
+          try { await Vocabulary.create({ ...word, language }); } catch (e) { /* skip duplicates */ }
+        }
+        words = await Vocabulary.getDailyWords(language, level, [], 10);
+      }
+    }
+
     res.status(200).json(words);
   } catch (error) {
     console.error("Error fetching daily vocabulary:", error);
@@ -259,37 +279,47 @@ export const masterVocabulary = async (req, res) => {
     const userId = req.user._id;
     const { words, timeSpent, accuracy } = req.body;
     
-    const progress = await LearningProgress.findOne({ user: userId });
+    let progress = await LearningProgress.findOne({ user: userId });
     if (!progress) {
-      return res.status(404).json({ message: "Learning progress not found" });
+      progress = await LearningProgress.create({
+        user: userId,
+        totalXP: 0,
+        currentLevel: 1,
+      });
     }
-    
-    // Add mastered words
-    const masteredWords = words.filter(w => w.mastered).map(w => ({
+
+    // Add mastered words to vocabulary array
+    const masteredWords = (words || []).filter(w => w.mastered).map(w => ({
       word: w.word,
       translation: w.translation,
-      masteredAt: new Date(),
-      category: w.category
+      language: w.language || "",
+      learnedAt: new Date(),
+      reviewCount: 1,
+      lastReviewed: new Date(),
     }));
-    
-    progress.vocabulary.mastered.push(...masteredWords);
-    progress.vocabulary.totalWords += masteredWords.length;
+
+    if (!progress.vocabulary) {
+      progress.vocabulary = [];
+    }
+    progress.vocabulary.push(...masteredWords);
+    progress.wordsLearned = (progress.wordsLearned || 0) + masteredWords.length;
 
     // Calculate XP and Coins based on performance
-    const xpEarned = Math.floor(masteredWords.length * 10 * (accuracy / 100));
-    const coinsEarned = Math.floor(masteredWords.length * 2 * (accuracy / 100)); // 2 coins per word
+    const acc = accuracy || 100;
+    const xpEarned = Math.floor(masteredWords.length * 10 * (acc / 100));
+    const coinsEarned = Math.floor(masteredWords.length * 2 * (acc / 100));
     progress.addXP(xpEarned);
 
     await progress.save();
 
-    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+    // Also update UserActivity XP and Coins for leaderboard/dashboard
     await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
 
     res.status(200).json({
       masteredCount: masteredWords.length,
       xpEarned,
       coinsEarned,
-      newTotalXP: progress.totalXP
+      newTotalXP: progress.totalXP || 0,
     });
   } catch (error) {
     console.error("Error mastering vocabulary:", error);
@@ -319,8 +349,19 @@ export const getLearningVideos = async (req, res) => {
     
     const { category } = req.query;
     const categories = category ? [category] : [];
-    const videos = await LearningVideo.getVideosForUser(language, level, isPremium, categories);
-    
+    let videos = await LearningVideo.getVideosForUser(language, level, isPremium, categories);
+
+    // Auto-seed if empty
+    if (videos.length === 0) {
+      const seedData = VIDEO_SEEDS[language] || VIDEO_SEEDS["english"];
+      if (seedData) {
+        for (const video of seedData) {
+          try { await LearningVideo.create({ ...video, language }); } catch (e) { /* skip duplicates */ }
+        }
+        videos = await LearningVideo.getVideosForUser(language, level, isPremium, categories);
+      }
+    }
+
     // Add watched status
     const videosWithStatus = videos.map(video => {
       const watched = progress?.videos?.watched?.find(
@@ -345,57 +386,42 @@ export const completeVideo = async (req, res) => {
   try {
     const userId = req.user._id;
     const { videoId, watchProgress, completed } = req.body;
-    
-    const progress = await LearningProgress.findOne({ user: userId });
-    if (!progress) {
-      return res.status(404).json({ message: "Learning progress not found" });
-    }
-    
+
     const video = await LearningVideo.findById(videoId);
     if (!video) {
       return res.status(404).json({ message: "Video not found" });
     }
-    
-    // Update video watch history
-    const existingWatch = progress.videos.watched.find(
-      w => w.videoId === videoId
-    );
-    
-    if (existingWatch) {
-      existingWatch.progress = watchProgress;
-      existingWatch.completed = completed;
-    } else {
-      progress.videos.watched.push({
-        videoId,
-        title: video.title,
-        watchedAt: new Date(),
-        progress: watchProgress,
-        completed
-      });
-      progress.videos.totalWatched += 1;
-    }
-    
+
     // Award XP and Coins if completed
     let xpEarned = 0;
     let coinsEarned = 0;
-    if (completed && (!existingWatch || !existingWatch.completed)) {
-      xpEarned = video.xpReward;
-      coinsEarned = Math.round(video.xpReward / 5); // Coins = XP / 5
-      progress.addXP(xpEarned);
+    if (completed) {
+      xpEarned = video.xpReward || 100;
+      coinsEarned = video.coins || Math.round(xpEarned / 5);
 
-      // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+      // Update LearningProgress XP
+      let progress = await LearningProgress.findOne({ user: userId });
+      if (!progress) {
+        progress = await LearningProgress.create({
+          user: userId,
+          totalXP: 0,
+          currentLevel: 1,
+        });
+      }
+      progress.addXP(xpEarned);
+      await progress.save();
+
+      // Also update UserActivity XP and Coins for leaderboard/dashboard
       await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
     }
 
     // Update video view count
     await video.incrementViewCount();
 
-    await progress.save();
-
     res.status(200).json({
       xpEarned,
       coinsEarned,
-      newTotalXP: progress.totalXP
+      newTotalXP: 0,
     });
   } catch (error) {
     console.error("Error completing video:", error);
@@ -471,12 +497,12 @@ export const getLearningStats = async (req, res) => {
     }
 
     res.status(200).json({
-      totalXP: progress.totalXP,
-      streak: progress.currentStreak,
-      level: progress.currentLevel,
-      wordsLearned: progress.vocabulary?.length || 0,
-      minutesLearned: (progress.conversations?.totalMinutes || 0) + (progress.videos?.totalMinutes || 0),
-      challengesCompleted: progress.dailyChallenges?.length || 0
+      totalXP: progress.totalXP || 0,
+      streak: progress.currentStreak || 0,
+      level: progress.currentLevel || 1,
+      wordsLearned: progress.wordsLearned || progress.vocabulary?.length || 0,
+      minutesLearned: progress.totalStudyTime || 0,
+      challengesCompleted: progress.dailyChallenges?.length || 0,
     });
   } catch (error) {
     console.error("Error fetching learning stats:", error);
@@ -501,9 +527,9 @@ export const getLeaderboard = async (req, res) => {
       profilePic: progress.user?.profilePic || null,
       username: progress.user?.username || null,
       userId: progress.user?._id || null,
-      totalXP: progress.totalXP,
-      level: progress.currentLevel,
-      currentStreak: progress.currentStreak
+      totalXP: progress.totalXP || 0,
+      level: progress.currentLevel || 1,
+      currentStreak: progress.currentStreak || 0,
     })).filter(entry => entry.userId !== null); // Filter out entries with no user data
 
     res.status(200).json({
@@ -564,7 +590,7 @@ export const getSubscriptionStatus = async (req, res) => {
 export const upgradeSubscription = async (req, res) => {
   try {
     const { plan, paymentMethod } = req.body;
-    
+
     // Mock implementation - you can add real payment processing later
     res.status(200).json({
       success: true,
@@ -578,5 +604,55 @@ export const upgradeSubscription = async (req, res) => {
   } catch (error) {
     console.error("Error upgrading subscription:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Seed daily challenges and vocabulary data
+export const seedLearningData = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    const language = user?.learningLanguage || "spanish";
+
+    let challengesAdded = 0;
+    let vocabAdded = 0;
+
+    // Seed challenges for user's language
+    const challenges = CHALLENGE_SEEDS[language] || CHALLENGE_SEEDS["english"];
+    for (const challenge of challenges) {
+      const seedChallenge = { ...challenge, language };
+      const exists = await DailyChallenge.findOne({
+        language: seedChallenge.language,
+        title: seedChallenge.title
+      });
+      if (!exists) {
+        await DailyChallenge.create(seedChallenge);
+        challengesAdded++;
+      }
+    }
+
+    // Seed vocabulary for user's language
+    const words = VOCABULARY_SEEDS[language] || VOCABULARY_SEEDS["english"];
+    for (const word of words) {
+      const seedWord = { ...word, language };
+      const exists = await Vocabulary.findOne({
+        language: seedWord.language,
+        word: seedWord.word
+      });
+      if (!exists) {
+        await Vocabulary.create(seedWord);
+        vocabAdded++;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Seeded ${challengesAdded} challenges and ${vocabAdded} vocabulary words for ${language}`,
+      challengesAdded,
+      vocabAdded
+    });
+  } catch (error) {
+    console.error("Error seeding learning data:", error);
+    res.status(500).json({ message: "Failed to seed learning data" });
   }
 };

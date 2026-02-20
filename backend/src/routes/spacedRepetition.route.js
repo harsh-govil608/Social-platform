@@ -10,13 +10,69 @@ import {
     getVocabulary,
     getStats,
     getReviewForecast,
-    resetWord
+    resetWord,
+    getTodaySession,
+    submitReviewWithLimit,
+    getDueReviewsWithLimit,
+    getWeeklyStats,
+    seedStarterWords
 } from '../controllers/spacedRepetition.controller.js';
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(protectRoute);
+
+/**
+ * @swagger
+ * /vocabulary/today-session:
+ *   get:
+ *     summary: Get today's vocabulary session status
+ *     tags: [Spaced Repetition]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Today's session status with limits
+ */
+router.get('/today-session', getTodaySession);
+
+/**
+ * @swagger
+ * /vocabulary/weekly-stats:
+ *   get:
+ *     summary: Get weekly vocabulary statistics
+ *     tags: [Spaced Repetition]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Weekly vocabulary stats
+ */
+router.get('/weekly-stats', getWeeklyStats);
+
+/**
+ * @swagger
+ * /vocabulary/due-reviews-limited:
+ *   get:
+ *     summary: Get vocabulary words due for review (with daily limit)
+ *     tags: [Spaced Repetition]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: language
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of words due for review (respecting daily limits)
+ */
+router.get('/due-reviews-limited', getDueReviewsWithLimit);
 
 /**
  * @swagger
@@ -45,6 +101,42 @@ router.use(protectRoute);
  *         description: List of words due for review
  */
 router.get('/due-reviews', getDueReviews);
+
+/**
+ * @swagger
+ * /vocabulary/review-limited/{wordId}:
+ *   post:
+ *     summary: Submit a review with daily limit tracking
+ *     tags: [Spaced Repetition]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: wordId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - quality
+ *             properties:
+ *               quality:
+ *                 type: integer
+ *                 minimum: 0
+ *                 maximum: 5
+ *                 description: SM-2 quality rating (0=blackout, 5=perfect)
+ *     responses:
+ *       200:
+ *         description: Review submitted successfully
+ *       429:
+ *         description: Daily limit reached
+ */
+router.post('/review-limited/:wordId', submitReviewWithLimit);
 
 /**
  * @swagger
@@ -228,6 +320,9 @@ router.post('/', addWord);
  *         description: Words added successfully
  */
 router.post('/bulk', addWordsBulk);
+
+// Seed starter vocabulary words for new users
+router.post('/seed-starter', seedStarterWords);
 
 /**
  * @swagger

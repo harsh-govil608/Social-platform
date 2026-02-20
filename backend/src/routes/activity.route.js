@@ -52,9 +52,9 @@ router.post("/complete-practice", protectRoute, async (req, res) => {
     await user.save();
 
     // Also log activity
-    let activity = await UserActivity.findOne({ userId });
+    let activity = await UserActivity.findOne({ user: userId });
     if (!activity) {
-      activity = await UserActivity.create({ userId });
+      activity = await UserActivity.create({ user: userId });
     }
     await activity.logActivity('practice', { type: 'daily_practice' });
 
@@ -74,11 +74,11 @@ router.get("/init", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    let activity = await UserActivity.findOne({ userId });
-    
+    let activity = await UserActivity.findOne({ user: userId });
+
     if (!activity) {
       activity = await UserActivity.create({
-        userId,
+        user: userId,
         dailySessions: [],
         weeklyStats: [],
         currentSession: {
@@ -105,12 +105,12 @@ router.post("/log", protectRoute, async (req, res) => {
     const userId = req.user._id;
     const { activityType, details } = req.body;
     
-    let activity = await UserActivity.findOne({ userId });
-    
+    let activity = await UserActivity.findOne({ user: userId });
+
     if (!activity) {
-      activity = await UserActivity.create({ userId });
+      activity = await UserActivity.create({ user: userId });
     }
-    
+
     await activity.logActivity(activityType, details);
     
     res.json({ success: true });
@@ -125,8 +125,8 @@ router.post("/end-session", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    const activity = await UserActivity.findOne({ userId });
-    
+    const activity = await UserActivity.findOne({ user: userId });
+
     if (activity) {
       await activity.endSession();
     }
@@ -144,7 +144,7 @@ router.get("/daily", protectRoute, async (req, res) => {
     const userId = req.user._id;
     const { date } = req.query;
     
-    const activity = await UserActivity.findOne({ userId });
+    const activity = await UserActivity.findOne({ user: userId });
     
     if (!activity) {
       return res.json({
@@ -175,7 +175,7 @@ router.get("/weekly", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    const activity = await UserActivity.findOne({ userId });
+    const activity = await UserActivity.findOne({ user: userId });
     
     if (!activity) {
       return res.json({
@@ -230,7 +230,7 @@ router.get("/monthly", protectRoute, async (req, res) => {
     const userId = req.user._id;
     const { month, year } = req.query;
     
-    const activity = await UserActivity.findOne({ userId });
+    const activity = await UserActivity.findOne({ user: userId });
     
     if (!activity) {
       return res.json({
@@ -288,7 +288,7 @@ router.get("/status", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    const activity = await UserActivity.findOne({ userId });
+    const activity = await UserActivity.findOne({ user: userId });
     
     if (!activity || !activity.currentSession?.isActive) {
       return res.json({
@@ -320,7 +320,7 @@ router.get("/achievements", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    const activity = await UserActivity.findOne({ userId });
+    const activity = await UserActivity.findOne({ user: userId });
     
     const achievements = activity?.achievements || [];
     
@@ -390,7 +390,7 @@ router.get("/today", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const activity = await UserActivity.findOne({ userId });
+    const activity = await UserActivity.findOne({ user: userId });
     const today = new Date().toDateString();
 
     if (!activity) {
@@ -430,7 +430,7 @@ router.get("/stats", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const activity = await UserActivity.findOne({ userId });
+    const activity = await UserActivity.findOne({ user: userId });
 
     if (!activity) {
       return res.json({
@@ -500,7 +500,7 @@ router.get("/dashboard", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    const activity = await UserActivity.findOne({ userId });
+    const activity = await UserActivity.findOne({ user: userId });
     
     if (!activity) {
       return res.json({

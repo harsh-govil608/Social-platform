@@ -8,8 +8,8 @@
 let redis;
 let isRealRedis = false;
 
-// Try to use real Redis if REDIS_URL is configured
-if (process.env.REDIS_URL) {
+// Try to use real Redis if REDIS_URL is configured and not a placeholder
+if (process.env.REDIS_URL && !process.env.REDIS_URL.includes('your_upstash')) {
   try {
     const Redis = (await import('ioredis')).default;
 

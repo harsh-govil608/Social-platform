@@ -2,6 +2,7 @@ import express from 'express';
 import { protectRoute } from "../middleware/auth.middleware.js";
 import { signup, logout, onboard, login } from "../controllers/auth.controller.js";
 import { validateSignup, validateLogin, handleValidationErrors } from "../validators/auth.validator.js";
+import { signupLimiter, loginLimiter } from "../middleware/security.middleware.js";
 import {
     requestPasswordReset,
     verifyResetToken,
@@ -54,7 +55,7 @@ const router= express.Router();
  *       400:
  *         description: Validation error or user already exists
  */
-router.post("/signup", validateSignup, handleValidationErrors, signup);
+router.post("/signup", signupLimiter, validateSignup, handleValidationErrors, signup);
 
 /**
  * @swagger
@@ -84,7 +85,7 @@ router.post("/signup", validateSignup, handleValidationErrors, signup);
  *       401:
  *         description: Invalid credentials
  */
-router.post("/login", validateLogin, handleValidationErrors, login);
+router.post("/login", loginLimiter, validateLogin, handleValidationErrors, login);
 
 /**
  * @swagger

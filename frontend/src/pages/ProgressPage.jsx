@@ -28,13 +28,25 @@ const ProgressPage = () => {
   const todayPracticed = activity?.todayPracticed || false;
 
   // Generate last 7 days for streak calendar
+  // Mark days completed based on streak count backward from today
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - i));
+    const daysAgo = 6 - i; // 6 = oldest, 0 = today
+
+    // If today is practiced, streak covers today + (streak-1) previous days
+    // If not, streak covers yesterday + (streak-1) previous days
+    let completed = false;
+    if (todayPracticed) {
+      completed = daysAgo < streak;
+    } else {
+      completed = daysAgo > 0 && daysAgo <= streak;
+    }
+
     return {
       day: date.toLocaleDateString('en-US', { weekday: 'short' }),
       date: date.getDate(),
-      completed: i < streak % 7 || (i === 6 && todayPracticed),
+      completed,
     };
   });
 

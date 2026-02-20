@@ -5,7 +5,8 @@ import {
     updateMatchingPreferences,
     getMatchingPreferences,
     getPartnerProfile,
-    searchPartners
+    searchPartners,
+    validateInteraction
 } from '../controllers/matching.controller.js';
 
 const router = express.Router();
@@ -144,5 +145,8 @@ router.post('/preferences', updateMatchingPreferences);
  *         description: Partner profile with compatibility details
  */
 router.get('/partner/:partnerId', getPartnerProfile);
+
+// Validate partner interaction duration (5-minute minimum)
+router.post('/validate-interaction', validateInteraction);
 
 export default router;

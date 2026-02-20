@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router";
-import { BellIcon, LogOutIcon, Zap, UserIcon, SettingsIcon, HomeIcon, Flame } from "lucide-react";
+import { BellIcon, LogOutIcon, Zap, UserIcon, Flame } from "lucide-react";
 import ThemeSelector from "./ThemeSelector.jsx";
 import useLogout from "../hooks/useLogout";
 import useAuthUser from "../hooks/useAuthUser";
@@ -75,12 +75,6 @@ const Navbar = () => {
                     <UserIcon className="h-4 w-4" />
                     Profile
                   </Link>
-                </li>
-                <li>
-                  <a className="flex items-center gap-2">
-                    <SettingsIcon className="h-4 w-4" />
-                    Settings
-                  </a>
                 </li>
                 <div className="divider my-1"></div>
                 <li>

@@ -104,22 +104,39 @@ export function logout(req,res){
 export async function onboard(req,res){
     try{
         const userId = req.user._id
-        const {fullName, bio, nativeLanguage, learningLanguage, location} = req.body
-        if(!fullName || !bio || !nativeLanguage || !learningLanguage || !location){
+        const currentUser = await User.findById(userId);
+        if (!currentUser) return res.status(404).json({message: "User not found"});
+
+        // If user is already onboarded, this is a profile update
+        if (currentUser.isOnboarded) {
+            const { fullName, bio, nativeLanguage, learningLanguage, location } = req.body;
+            const updateFields = {};
+            if (fullName !== undefined) updateFields.fullName = fullName;
+            if (bio !== undefined) updateFields.bio = bio;
+            if (nativeLanguage !== undefined) updateFields.nativeLanguage = nativeLanguage;
+            if (learningLanguage !== undefined) updateFields.learningLanguage = learningLanguage;
+            if (location !== undefined) updateFields.location = location;
+
+            const updatedUser = await User.findByIdAndUpdate(userId, updateFields, { new: true });
+            return res.status(200).json({ success: true, user: updatedUser });
+        }
+
+        // First-time onboarding flow
+        const {learningLanguage, proficiencyLevel, dailyAvailability} = req.body
+        if(!learningLanguage || !proficiencyLevel || !dailyAvailability){
             return res.status(400).json({message: "All fields are required",
                 missingFields: [
-                    !fullName && "fullName",
-                    !bio && "bio",
-                    !nativeLanguage && "nativeLanguage",
-                    !learningLanguage && "LearningLanguage",
-                    !location && "Location",
+                    !learningLanguage && "learningLanguage",
+                    !proficiencyLevel && "proficiencyLevel",
+                    !dailyAvailability && "dailyAvailability",
                 ].filter(Boolean),
             });
         }
         const updatedUser = await User.findByIdAndUpdate(userId,{
-            ...req.body,
+            learningLanguage,
+            languageProficiency: proficiencyLevel,
+            dailyAvailability,
             isOnboarded: true,
-
         }, {new: true})
         if(!updatedUser) return res.status(404).json({message: "User not found"});
         try{

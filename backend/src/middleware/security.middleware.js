@@ -4,6 +4,59 @@ import helmet from 'helmet';
 // Check if in development mode
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
+// In-memory per-user AI request tracker
+const userAIRequests = new Map();
+
+/**
+ * Per-user AI rate limiter middleware.
+ * Limits authenticated users to maxRequests per windowMs regardless of IP.
+ * Falls through (no block) for unauthenticated requests — IP limiter handles those.
+ */
+export const perUserAILimiter = (maxRequests = 20, windowMs = 60 * 60 * 1000) => {
+  return (req, res, next) => {
+    if (isDevelopment) return next();
+
+    // Extract userId from JWT cookie (auth middleware sets req.user)
+    const userId = req.user?._id?.toString();
+    if (!userId) return next(); // Not authenticated, handled by IP limiter
+
+    const now = Date.now();
+    const key = userId;
+
+    if (!userAIRequests.has(key)) {
+      userAIRequests.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+
+    const record = userAIRequests.get(key);
+
+    if (now > record.resetAt) {
+      record.count = 1;
+      record.resetAt = now + windowMs;
+      return next();
+    }
+
+    if (record.count >= maxRequests) {
+      const retryAfterSecs = Math.ceil((record.resetAt - now) / 1000);
+      return res.status(429).json({
+        message: `AI request limit reached. Try again in ${Math.ceil(retryAfterSecs / 60)} minutes.`,
+        retryAfter: retryAfterSecs,
+      });
+    }
+
+    record.count++;
+    next();
+  };
+};
+
+// Clean up stale user AI records every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of userAIRequests.entries()) {
+    if (now > record.resetAt) userAIRequests.delete(key);
+  }
+}, 10 * 60 * 1000);
+
 // General API rate limiter
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -228,3 +281,68 @@ setInterval(() => {
     }
   }
 }, 60000); // Clean up every minute
+
+// Chat creation rate limiter (prevent spam)
+export const chatCreationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: isDevelopment ? 100 : 10, // 10 new chats per hour in production
+  message: 'Too many chat conversations created. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false
+});
+
+// Message sending rate limiter
+export const messageLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: isDevelopment ? 1000 : 30, // 30 messages per minute in production
+  message: 'Too many messages sent. Please slow down.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Daily task rate limiter (prevent abuse)
+export const dailyTaskLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  max: isDevelopment ? 100 : 3, // 3 task attempts per day in production
+  message: 'Daily task limit reached. Try again tomorrow.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Login rate limiter (more strict for security)
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isDevelopment ? 50 : 5, // 5 attempts per 15 minutes in production
+  message: 'Too many login attempts. Please try again after 15 minutes.',
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Signup rate limiter
+export const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: isDevelopment ? 50 : 3, // 3 signups per hour per IP
+  message: 'Too many accounts created from this IP. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// AI tutor specific limiter (stricter than general AI)
+export const aiTutorLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: isDevelopment ? 100 : 5, // 5 AI tutor calls per minute
+  message: 'Too many AI tutor requests. Please wait a moment.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Vocabulary practice rate limiter
+export const vocabularyLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: isDevelopment ? 100 : 20, // 20 vocabulary requests per minute
+  message: 'Too many vocabulary requests. Please slow down.',
+  standardHeaders: true,
+  legacyHeaders: false
+});

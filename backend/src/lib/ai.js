@@ -3,127 +3,130 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Initialize Hugging Face client (OpenAI-compatible API)
-let hfClient = null;
-let isConfigured = false;
+/**
+ * AI client — prefers OpenAI when OPENAI_API_KEY is set (more reliable, faster).
+ * Falls back to Hugging Face (free but rate-limited) when only HF_TOKEN is set.
+ * Falls back to mock responses when neither is configured.
+ */
 
-try {
-  if (!process.env.HF_TOKEN) {
-    console.warn("⚠️  HF_TOKEN not found. AI features will use mock responses.");
-    console.warn("   To enable real AI, add HF_TOKEN to your .env file");
-    console.warn("   Get token from: https://huggingface.co/settings/tokens");
-  } else {
-    hfClient = new OpenAI({
-      apiKey: process.env.HF_TOKEN,
-      baseURL: "https://router.huggingface.co/v1"
-    });
-    isConfigured = true;
-    console.log("✅ Hugging Face AI client initialized successfully");
-  }
-} catch (error) {
-  console.error("❌ Failed to initialize Hugging Face client:", error);
+let client = null;
+let provider = "none";
+
+if (process.env.OPENAI_API_KEY && !process.env.OPENAI_API_KEY.startsWith("sk-your")) {
+  client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  provider = "openai";
+  console.log("✅ OpenAI AI client initialized");
+} else if (process.env.HF_TOKEN) {
+  client = new OpenAI({
+    apiKey: process.env.HF_TOKEN,
+    baseURL: "https://router.huggingface.co/v1",
+  });
+  provider = "huggingface";
+  console.log("✅ Hugging Face AI client initialized successfully");
+} else {
+  console.warn("⚠️  No AI provider configured. Add OPENAI_API_KEY (recommended) or HF_TOKEN to .env");
 }
 
+// Default models per provider
+const DEFAULT_MODEL = {
+  openai: "gpt-4o-mini",          // fast, cheap, excellent quality
+  huggingface: "meta-llama/Llama-3.2-3B-Instruct",
+  none: null,
+};
+
 /**
- * Main AI response generator - use this from any controller/service
- * 
+ * Generate an AI response.
  * @param {Object} params
- * @param {string} params.systemPrompt - AI instructions/role (e.g., "You are a helpful tutor")
- * @param {string} params.userMessage - User's input or conversation context
- * @param {string} [params.model] - Hugging Face model (default: Llama-3.2-3B)
- * @param {number} [params.temperature] - Creativity 0-1 (default: 0.7)
- * @param {number} [params.maxTokens] - Max response length (default: 400)
- * @returns {Promise<string>} AI-generated response
+ * @param {string} params.systemPrompt - Role/instructions for the AI
+ * @param {string} params.userMessage  - User's input
+ * @param {string} [params.model]      - Override model (uses provider default if omitted)
+ * @param {number} [params.temperature=0.7]
+ * @param {number} [params.maxTokens=400]
+ * @returns {Promise<string>}
  */
 export async function generateAIResponse({
   systemPrompt,
   userMessage,
-  model = "meta-llama/Llama-3.2-3B-Instruct",
+  model,
   temperature = 0.7,
-  maxTokens = 400
+  maxTokens = 400,
 }) {
-  // Validate inputs
   if (!systemPrompt || !userMessage) {
     throw new Error("systemPrompt and userMessage are required");
   }
 
-  // Mock mode fallback (no token configured)
-  if (!hfClient) {
-    return `[MOCK AI RESPONSE] You asked: "${userMessage.slice(0, 100)}..."\n\nThis is a mock response. Add HF_TOKEN to .env for real AI.`;
+  if (!client) {
+    return `[MOCK AI RESPONSE] You asked: "${userMessage.slice(0, 100)}..."\n\nAdd OPENAI_API_KEY to .env for real AI responses.`;
   }
 
+  const resolvedModel = model || DEFAULT_MODEL[provider];
+
   try {
-    const completion = await hfClient.chat.completions.create({
-      model,
+    const completion = await client.chat.completions.create({
+      model: resolvedModel,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage }
+        { role: "user", content: userMessage },
       ],
       temperature,
-      max_tokens: maxTokens
+      max_tokens: maxTokens,
     });
 
     const responseText = completion.choices?.[0]?.message?.content;
-    
+
     if (!responseText) {
-      console.error("Empty response from Hugging Face");
       return "I apologize, but I couldn't generate a proper response. Please try again.";
     }
 
     return responseText.trim();
-
   } catch (error) {
-    console.error("Error in generateAIResponse:", error.message);
-    
-    // Handle specific error types
+    console.error(`Error in generateAIResponse (${provider}):`, error.message);
+
     if (error.status === 429) {
       return "I'm currently experiencing high demand. Please try again in a moment.";
     }
-    
     if (error.status === 401 || error.status === 403) {
-      console.error("Authentication error - check HF_TOKEN permissions");
+      console.error("AI authentication error — check your API key");
       return "AI service authentication failed. Please contact support.";
     }
 
-    // Generic fallback
     return "I'm having trouble responding right now. Please try again in a moment.";
   }
 }
 
 /**
- * Shorter AI responses (for hints, titles, quick suggestions)
- * 
- * @param {Object} params - Same as generateAIResponse
- * @returns {Promise<string>} Short AI response (max 150 tokens)
+ * Shorter AI responses for hints, titles, quick suggestions.
  */
 export async function generateShortAIResponse(params) {
   return generateAIResponse({
     ...params,
-    maxTokens: Math.min(params.maxTokens || 150, 150)
+    maxTokens: Math.min(params.maxTokens || 150, 150),
   });
 }
 
 /**
- * Check if AI is properly configured
- * 
- * @returns {boolean} True if HF_TOKEN is set and client initialized
+ * Check if AI is configured.
  */
 export function isAIConfigured() {
-  return isConfigured;
+  return provider !== "none";
 }
 
-/**
- * Available models (free on Hugging Face)
- */
 export const MODELS = {
-  FAST: "meta-llama/Llama-3.2-3B-Instruct",      // Fast, lightweight
-  BALANCED: "meta-llama/Meta-Llama-3-8B-Instruct", // Better quality
-  SMART: "mistralai/Mistral-7B-Instruct-v0.3"    // Good reasoning
+  // OpenAI models
+  GPT4O_MINI: "gpt-4o-mini",
+  GPT4O: "gpt-4o",
+  // Hugging Face fallback models
+  FAST: "meta-llama/Llama-3.2-3B-Instruct",
+  BALANCED: "meta-llama/Meta-Llama-3-8B-Instruct",
+  SMART: "mistralai/Mistral-7B-Instruct-v0.3",
 };
+
+export const AI_PROVIDER = provider;
 
 export default {
   generateAIResponse,
   generateShortAIResponse,
   isAIConfigured,
-  MODELS
+  MODELS,
+  AI_PROVIDER,
 };

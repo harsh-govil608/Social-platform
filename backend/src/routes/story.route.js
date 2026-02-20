@@ -93,7 +93,7 @@ router.post("/submit", protectRoute, async (req, res) => {
     });
     
     // Update user activity
-    const activity = await UserActivity.findOne({ userId });
+    const activity = await UserActivity.findOne({ user: userId });
     if (activity) {
       const today = new Date().toDateString();
       let todaySession = activity.dailySessions.find(s => 

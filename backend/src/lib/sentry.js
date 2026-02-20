@@ -19,13 +19,9 @@ export const initSentry = (app) => {
     profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
 
     integrations: [
-      // Enable HTTP calls tracing
-      new Sentry.Integrations.Http({ tracing: true }),
-
-      // Enable Express.js middleware tracing
-      new Sentry.Integrations.Express({ app }),
-
-      // Enable profiling
+      // HTTP and Express tracing (API changed in Sentry v8+)
+      ...(Sentry.httpIntegration ? [Sentry.httpIntegration()] : []),
+      ...(Sentry.expressIntegration ? [Sentry.expressIntegration({ app })] : []),
       nodeProfilingIntegration(),
     ],
 

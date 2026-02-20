@@ -14,26 +14,27 @@ import chatRoutes from "./routes/chat.route.js";
 import postRoutes from "./routes/post.route.js";
 import notificationRoutes from "./routes/notification.route.js";
 import languageJourneyRoutes from "./routes/languageJourney.route.js";
-import conversationRoutes from "./routes/conversation.route.js";
+// import conversationRoutes from "./routes/conversation.route.js"; // Beta: disabled
 import conversationPracticeRoutes from "./routes/conversationPractice.route.js";
 import learningRoutes from "./routes/learning.route.js";
-import codingRoutes from "./routes/coding.route.js";
-import storyRoutes from "./routes/story.route.js";
+// import codingRoutes from "./routes/coding.route.js"; // Beta: disabled
+// import storyRoutes from "./routes/story.route.js"; // Beta: disabled
 import activityRoutes from "./routes/activity.route.js";
-import dsaRoutes from "./routes/dsa.route.js";
+// import dsaRoutes from "./routes/dsa.route.js"; // Beta: disabled
 import aiTutorRoutes from "./routes/aiTutor.route.js";
 import spacedRepetitionRoutes from "./routes/spacedRepetition.route.js";
-import contestRoutes from "./routes/contest.route.js";
-import certificateRoutes from "./routes/certificate.route.js";
+// import contestRoutes from "./routes/contest.route.js"; // Beta: disabled
+// import certificateRoutes from "./routes/certificate.route.js"; // Beta: disabled
 import matchingRoutes from "./routes/matching.route.js";
+import dailyTaskRoutes from "./routes/dailyTask.route.js";
+import analyticsRoutes from "./routes/analytics.route.js";
 
-// New monetization & B2B routes
-import subscriptionRoutes from "./routes/subscription.route.js";
 import gamificationRoutes from "./routes/gamification.route.js";
-import referralRoutes from "./routes/referral.route.js";
-import organizationRoutes from "./routes/organization.route.js";
 import adminRoutes from "./routes/admin.route.js";
-import docsRoutes from "./routes/docs.route.js";
+import subscriptionRoutes from "./routes/subscription.route.js";
+// import referralRoutes from "./routes/referral.route.js";   // enable when ready
+// import organizationRoutes from "./routes/organization.route.js"; // enable when ready
+// import docsRoutes from "./routes/docs.route.js";
 import healthRoutes from "./routes/health.route.js";
 import gdprRoutes from "./routes/gdpr.route.js";
 
@@ -46,7 +47,15 @@ import {
   sanitizeInput,
   csrfProtection,
   logSuspiciousActivity,
-  validateBodySize
+  validateBodySize,
+  chatCreationLimiter,
+  messageLimiter,
+  dailyTaskLimiter,
+  loginLimiter,
+  signupLimiter,
+  aiTutorLimiter,
+  vocabularyLimiter,
+  perUserAILimiter
 } from "./middleware/security.middleware.js";
 
 // Database & utilities
@@ -148,35 +157,37 @@ app.use(csrfProtection);
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(path.resolve(), 'uploads')));
 
-// API Documentation (Swagger)
-app.use("/api/docs", docsRoutes);
+// API Documentation (Swagger) - Beta: disabled
+// app.use("/api/docs", docsRoutes);
 
 // API Routes - Existing features
-app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/auth", loginLimiter, authRoutes);
 app.use("/api/users", apiLimiter, userRoutes);
-app.use("/api/chat", apiLimiter, chatRoutes);
+app.use("/api/chat", messageLimiter, chatRoutes);
 app.use("/api/posts", apiLimiter, postRoutes);
 app.use("/api/notifications", apiLimiter, notificationRoutes);
 app.use("/api/language-journey", aiLimiter, languageJourneyRoutes);
-app.use("/api/conversations", aiLimiter, conversationRoutes);
-app.use("/api/conversation-practice", aiLimiter, conversationPracticeRoutes);
+// app.use("/api/conversations", aiLimiter, conversationRoutes); // Beta: disabled
+app.use("/api/conversation-practice", aiLimiter, perUserAILimiter(20, 60 * 60 * 1000), conversationPracticeRoutes);
 app.use("/api/learning", aiLimiter, learningRoutes);
-app.use("/api/coding", aiLimiter, codingRoutes);
-app.use("/api/stories", apiLimiter, storyRoutes);
+// app.use("/api/coding", aiLimiter, codingRoutes); // Beta: disabled
+// app.use("/api/stories", apiLimiter, storyRoutes); // Beta: disabled
 app.use("/api/activity", apiLimiter, activityRoutes);
-app.use("/api/dsa", aiLimiter, dsaRoutes);
-app.use("/api/ai-tutor", aiLimiter, aiTutorRoutes);
-app.use("/api/vocabulary", apiLimiter, spacedRepetitionRoutes);
-app.use("/api/contests", apiLimiter, contestRoutes);
-app.use("/api/certificates", apiLimiter, certificateRoutes);
+// app.use("/api/dsa", aiLimiter, dsaRoutes); // Beta: disabled
+app.use("/api/ai-tutor", aiTutorLimiter, perUserAILimiter(30, 60 * 60 * 1000), aiTutorRoutes);
+app.use("/api/vocabulary", vocabularyLimiter, spacedRepetitionRoutes);
+// app.use("/api/contests", apiLimiter, contestRoutes); // Beta: disabled
+// app.use("/api/certificates", apiLimiter, certificateRoutes); // Beta: disabled
 app.use("/api/matching", apiLimiter, matchingRoutes);
+app.use("/api/daily-task", dailyTaskLimiter, dailyTaskRoutes);
+app.use("/api/analytics", apiLimiter, analyticsRoutes);
 
-// Monetization & B2B routes
-app.use("/api/subscription", apiLimiter, subscriptionRoutes);
+// B2B routes (disabled)
+// app.use("/api/referral", apiLimiter, referralRoutes);
+// app.use("/api/organization", apiLimiter, organizationRoutes);
+
 app.use("/api/gamification", apiLimiter, gamificationRoutes);
-app.use("/api/referral", apiLimiter, referralRoutes);
-app.use("/api/organization", apiLimiter, organizationRoutes);
-
+app.use("/api/subscription", subscriptionRoutes); // webhook needs raw body, no apiLimiter wrapper
 // Admin routes
 app.use("/api/admin", apiLimiter, adminRoutes);
 
@@ -242,25 +253,28 @@ server.listen(PORT, async () => {
     // Start memory monitoring
     memoryMonitoring();
 
-    // Initialize achievements on startup
+    // Seed default achievements (safe to run on every startup - uses upsert)
     try {
         await initializeAchievements();
-        console.log('✅ Gamification system initialized\n');
+        console.log('✅ Gamification achievements seeded');
     } catch (error) {
-        console.error('❌ Failed to initialize achievements:', error);
+        console.error('❌ Failed to seed achievements:', error.message);
     }
 
-    console.log('📦 Available API endpoints:');
+    console.log('📦 API endpoints:');
     console.log('   - /api/auth - Authentication');
     console.log('   - /api/users - User management');
-    console.log('   - /api/posts - Social posts');
-    console.log('   - /api/subscription - Premium subscriptions');
-    console.log('   - /api/gamification - Achievements & leaderboards');
-    console.log('   - /api/referral - Referral program');
-    console.log('   - /api/organization - B2B/White-label');
+    console.log('   - /api/chat - Messaging');
+    console.log('   - /api/posts - Social feed');
+    console.log('   - /api/notifications - Notifications');
+    console.log('   - /api/daily-task - Daily task flow');
+    console.log('   - /api/learning - Learning progress');
     console.log('   - /api/ai-tutor - AI tutoring');
-    console.log('   - /api/dsa - DSA problems');
-    console.log('   - /api/coding - Coding challenges');
-    console.log('   - /api/conversation-practice - Language learning');
+    console.log('   - /api/conversation-practice - Conversation practice');
+    console.log('   - /api/vocabulary - Spaced repetition');
+    console.log('   - /api/matching - Partner matching');
+    console.log('   - /api/activity - User activity');
+    console.log('   - /api/analytics - Analytics');
+    console.log('   - /api/admin - Admin dashboard');
     console.log('   - /api/health - Health check\n');
 });

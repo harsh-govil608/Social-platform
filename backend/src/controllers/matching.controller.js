@@ -1,6 +1,9 @@
 import User from '../models/User.js';
 import { findBestMatches, getMatchQuality } from '../lib/matchingAlgorithm.js';
 
+// Minimum partner interaction duration in seconds (5 minutes)
+const MIN_INTERACTION_DURATION = 5 * 60;
+
 /**
  * Get partner matches for the authenticated user
  */
@@ -252,5 +255,36 @@ export async function searchPartners(req, res) {
     } catch (error) {
         console.error('Error in searchPartners:', error);
         res.status(500).json({ message: 'Failed to search partners' });
+    }
+}
+
+/**
+ * Validate partner interaction meets minimum duration (5 minutes)
+ */
+export async function validateInteraction(req, res) {
+    try {
+        const { durationSeconds, partnerId } = req.body;
+
+        if (!durationSeconds || !partnerId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Duration and partner ID are required',
+            });
+        }
+
+        const meetsMinimum = durationSeconds >= MIN_INTERACTION_DURATION;
+
+        res.status(200).json({
+            success: true,
+            meetsMinimum,
+            durationSeconds,
+            minimumRequired: MIN_INTERACTION_DURATION,
+            message: meetsMinimum
+                ? 'Interaction meets minimum duration'
+                : `Minimum ${MIN_INTERACTION_DURATION / 60} minutes required. You spent ${Math.floor(durationSeconds / 60)} minutes.`,
+        });
+    } catch (error) {
+        console.error('Error in validateInteraction:', error);
+        res.status(500).json({ message: 'Failed to validate interaction' });
     }
 }

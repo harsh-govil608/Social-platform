@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router';
-import { BookOpen, MessageCircle, Flame, User, Zap } from 'lucide-react';
+import { CalendarCheck, MessageCircle, Users, User, Zap, Flame, Newspaper, Trophy, Star, Map } from 'lucide-react';
 import useAuthUser from '../hooks/useAuthUser';
 
 const Sidebar = () => {
@@ -7,11 +7,14 @@ const Sidebar = () => {
     const location = useLocation();
     const currentPath = location.pathname;
 
-    // Simplified navigation - 4 core items only
     const navItems = [
-        { path: '/', icon: BookOpen, label: 'Learn', description: 'Daily lessons' },
-        { path: '/practice', icon: MessageCircle, label: 'Practice', description: 'Talk with others' },
-        { path: '/progress', icon: Flame, label: 'Progress', description: 'Your streak' },
+        { path: '/daily-task', icon: CalendarCheck, label: 'Daily Task', description: "Today's practice" },
+        { path: '/feed', icon: Newspaper, label: 'Community', description: 'Posts & social feed' },
+        { path: '/practice', icon: MessageCircle, label: 'Practice', description: 'AI & vocab practice' },
+        { path: '/language-journey', icon: Map, label: 'Journey', description: 'Your learning path' },
+        { path: '/find-partners', icon: Users, label: 'Partners', description: 'Find a partner' },
+        { path: '/leaderboard', icon: Trophy, label: 'Leaderboard', description: 'Top learners' },
+        { path: '/achievements', icon: Star, label: 'Achievements', description: 'Badges & XP' },
         { path: '/profile', icon: User, label: 'Profile', description: 'Your profile' },
     ];
 

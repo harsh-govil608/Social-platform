@@ -12,7 +12,8 @@ import {
   getLearningStats,
   getLeaderboard,
   getSubscriptionStatus,
-  upgradeSubscription
+  upgradeSubscription,
+  seedLearningData
 } from "../controllers/learning.controller.js";
 
 const router = express.Router();
@@ -42,5 +43,8 @@ router.get("/leaderboard", protectRoute, getLeaderboard);
 // Subscription
 router.get("/subscription/status", protectRoute, getSubscriptionStatus);
 router.post("/subscription/upgrade", protectRoute, upgradeSubscription);
+
+// Seed data
+router.post("/seed", protectRoute, seedLearningData);
 
 export default router;

@@ -1,19 +1,26 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { toast } from "react-hot-toast";
-import { 
-  UserIcon, 
-  MapPinIcon, 
-  GlobeIcon, 
-  BookOpenIcon, 
+import {
+  UserIcon,
+  MapPinIcon,
+  GlobeIcon,
+  BookOpenIcon,
   CameraIcon,
   SaveIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  Flame,
+  Users,
+  Bell,
+  ChevronRight,
+  BarChart3,
+  Trash2,
 } from "lucide-react";
 import useAuthUser from "../hooks/useAuthUser";
 import { completeOnboarding } from "../lib/api";
 import { getLanguageFlag } from "../components/FriendCard";
+import axiosInstance from "../lib/axios";
 
 const ProfilePage = () => {
   const { authUser } = useAuthUser();
@@ -29,6 +36,39 @@ const ProfilePage = () => {
   });
 
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUploadingPic, setIsUploadingPic] = useState(false);
+
+  const handleProfilePicChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("profilePic", file);
+    setIsUploadingPic(true);
+    try {
+      await axiosInstance.post("/users/profile-pic", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      toast.success("Profile picture updated!");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to upload picture");
+    } finally {
+      setIsUploadingPic(false);
+    }
+  };
+
+  const { mutate: requestDeleteAccount, isPending: isDeleting } = useMutation({
+    mutationFn: () => axiosInstance.post("/gdpr/delete-account"),
+    onSuccess: () => {
+      toast.success("Account deletion requested. You have 30 days to cancel.");
+      setShowDeleteConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Failed to request deletion");
+    },
+  });
 
   const { mutate: updateProfile, isPending } = useMutation({
     mutationFn: completeOnboarding,
@@ -85,9 +125,19 @@ const ProfilePage = () => {
                   <div className="w-32 rounded-full">
                     <img src={authUser?.profilePic} alt={authUser?.fullName} />
                   </div>
-                  <button className="btn btn-circle btn-sm absolute bottom-0 right-0">
-                    <CameraIcon className="w-4 h-4" />
-                  </button>
+                  <label className="btn btn-circle btn-sm absolute bottom-0 right-0 cursor-pointer">
+                    {isUploadingPic
+                      ? <span className="loading loading-spinner loading-xs" />
+                      : <CameraIcon className="w-4 h-4" />
+                    }
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleProfilePicChange}
+                      disabled={isUploadingPic}
+                    />
+                  </label>
                 </div>
                 <h2 className="card-title text-xl">{authUser?.fullName}</h2>
                 <p className="text-base-content/70">{authUser?.email}</p>
@@ -295,6 +345,123 @@ const ProfilePage = () => {
                 </form>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Danger Zone */}
+        <div className="mt-8">
+          <h3 className="text-xl font-semibold mb-4 text-error">Danger Zone</h3>
+          <div className="card bg-base-200 border border-error/30">
+            <div className="card-body p-4 flex-row items-center justify-between">
+              <div>
+                <h4 className="font-semibold">Delete Account</h4>
+                <p className="text-xs opacity-70">Permanently delete your account and all data (GDPR)</p>
+              </div>
+              {!showDeleteConfirm ? (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="btn btn-error btn-sm btn-outline gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              ) : (
+                <div className="flex gap-2 items-center">
+                  <span className="text-sm text-error font-medium">Are you sure?</span>
+                  <button
+                    onClick={() => requestDeleteAccount()}
+                    disabled={isDeleting}
+                    className="btn btn-error btn-sm"
+                  >
+                    {isDeleting ? <span className="loading loading-spinner loading-xs" /> : "Yes, delete"}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="btn btn-ghost btn-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Links */}
+        <div className="mt-8">
+          <h3 className="text-xl font-semibold mb-4">More</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Link
+              to="/progress"
+              className="card bg-base-200 hover:bg-base-300 transition-colors"
+            >
+              <div className="card-body p-4 flex-row items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-orange-500/10 p-2.5 rounded-xl">
+                    <Flame className="size-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Progress & Streak</h4>
+                    <p className="text-xs opacity-70">{authUser?.streak || 0} day streak</p>
+                  </div>
+                </div>
+                <ChevronRight className="size-5 opacity-50" />
+              </div>
+            </Link>
+
+            <Link
+              to="/friends"
+              className="card bg-base-200 hover:bg-base-300 transition-colors"
+            >
+              <div className="card-body p-4 flex-row items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2.5 rounded-xl">
+                    <Users className="size-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Friends</h4>
+                    <p className="text-xs opacity-70">Manage friend list</p>
+                  </div>
+                </div>
+                <ChevronRight className="size-5 opacity-50" />
+              </div>
+            </Link>
+
+            <Link
+              to="/notifications"
+              className="card bg-base-200 hover:bg-base-300 transition-colors"
+            >
+              <div className="card-body p-4 flex-row items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-secondary/10 p-2.5 rounded-xl">
+                    <Bell className="size-5 text-secondary" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Notifications</h4>
+                    <p className="text-xs opacity-70">Friend requests & updates</p>
+                  </div>
+                </div>
+                <ChevronRight className="size-5 opacity-50" />
+              </div>
+            </Link>
+
+            <Link
+              to="/daily-task"
+              className="card bg-base-200 hover:bg-base-300 transition-colors"
+            >
+              <div className="card-body p-4 flex-row items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-info/10 p-2.5 rounded-xl">
+                    <BarChart3 className="size-5 text-info" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Daily Task</h4>
+                    <p className="text-xs opacity-70">Today's learning</p>
+                  </div>
+                </div>
+                <ChevronRight className="size-5 opacity-50" />
+              </div>
+            </Link>
           </div>
         </div>
       </div>
