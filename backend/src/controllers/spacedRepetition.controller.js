@@ -1,6 +1,7 @@
 import VocabularyReview from '../models/VocabularyReview.js';
 import DailyVocabularySession from '../models/DailyVocabularySession.js';
 import User from '../models/User.js';
+import { log } from '../lib/logger.js';
 import {
     calculateNextReview,
     calculateMastery,
@@ -115,7 +116,7 @@ export async function getDueReviews(req, res) {
             reviews: sortedReviews
         });
     } catch (error) {
-        console.error('Error in getDueReviews:', error);
+        log.error('Error in getDueReviews:', error);
         res.status(500).json({ message: 'Failed to get due reviews' });
     }
 }
@@ -184,7 +185,7 @@ export async function submitReview(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in submitReview:', error);
+        log.error('Error in submitReview:', error);
         res.status(500).json({ message: 'Failed to submit review' });
     }
 }
@@ -253,7 +254,7 @@ export async function addWord(req, res) {
             word: newWord
         });
     } catch (error) {
-        console.error('Error in addWord:', error);
+        log.error('Error in addWord:', error);
         if (error.code === 11000) {
             return res.status(400).json({ message: 'This word is already in your vocabulary list' });
         }
@@ -330,7 +331,7 @@ export async function addWordsBulk(req, res) {
             results
         });
     } catch (error) {
-        console.error('Error in addWordsBulk:', error);
+        log.error('Error in addWordsBulk:', error);
         res.status(500).json({ message: 'Failed to add words' });
     }
 }
@@ -372,7 +373,7 @@ export async function updateWord(req, res) {
             word
         });
     } catch (error) {
-        console.error('Error in updateWord:', error);
+        log.error('Error in updateWord:', error);
         res.status(500).json({ message: 'Failed to update word' });
     }
 }
@@ -399,7 +400,7 @@ export async function deleteWord(req, res) {
             message: 'Word deleted successfully'
         });
     } catch (error) {
-        console.error('Error in deleteWord:', error);
+        log.error('Error in deleteWord:', error);
         res.status(500).json({ message: 'Failed to delete word' });
     }
 }
@@ -455,7 +456,7 @@ export async function getVocabulary(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getVocabulary:', error);
+        log.error('Error in getVocabulary:', error);
         res.status(500).json({ message: 'Failed to get vocabulary' });
     }
 }
@@ -515,7 +516,7 @@ export async function getStats(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getStats:', error);
+        log.error('Error in getStats:', error);
         res.status(500).json({ message: 'Failed to get statistics' });
     }
 }
@@ -555,7 +556,7 @@ export async function getReviewForecast(req, res) {
             forecast
         });
     } catch (error) {
-        console.error('Error in getReviewForecast:', error);
+        log.error('Error in getReviewForecast:', error);
         res.status(500).json({ message: 'Failed to get review forecast' });
     }
 }
@@ -590,7 +591,7 @@ export async function resetWord(req, res) {
             word
         });
     } catch (error) {
-        console.error('Error in resetWord:', error);
+        log.error('Error in resetWord:', error);
         res.status(500).json({ message: 'Failed to reset word' });
     }
 }
@@ -635,7 +636,7 @@ export async function getTodaySession(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getTodaySession:', error);
+        log.error('Error in getTodaySession:', error);
         res.status(500).json({ message: 'Failed to get today session' });
     }
 }
@@ -760,7 +761,7 @@ export async function submitReviewWithLimit(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in submitReviewWithLimit:', error);
+        log.error('Error in submitReviewWithLimit:', error);
         res.status(500).json({ message: 'Failed to submit review' });
     }
 }
@@ -823,7 +824,7 @@ export async function getDueReviewsWithLimit(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getDueReviewsWithLimit:', error);
+        log.error('Error in getDueReviewsWithLimit:', error);
         res.status(500).json({ message: 'Failed to get due reviews' });
     }
 }
@@ -844,7 +845,7 @@ export async function getWeeklyStats(req, res) {
             streak
         });
     } catch (error) {
-        console.error('Error in getWeeklyStats:', error);
+        log.error('Error in getWeeklyStats:', error);
         res.status(500).json({ message: 'Failed to get weekly stats' });
     }
 }
@@ -896,7 +897,7 @@ export async function seedStarterWords(req, res) {
             added,
         });
     } catch (error) {
-        console.error('Error in seedStarterWords:', error);
+        log.error('Error in seedStarterWords:', error);
         res.status(500).json({ message: 'Failed to seed starter words' });
     }
 }

@@ -1,5 +1,6 @@
 import Subscription from '../models/Subscription.js';
 import User from '../models/User.js';
+import { log } from '../lib/logger.js';
 import {
   createCustomer,
   createCheckoutSession,
@@ -35,7 +36,7 @@ export const getCurrentSubscription = async (req, res) => {
       availablePlans: PRICING_CONFIG.individual
     });
   } catch (error) {
-    console.error('Error getting subscription:', error);
+    log.error('Error getting subscription:', error);
     res.status(500).json({ message: 'Failed to get subscription', error: error.message });
   }
 };
@@ -85,7 +86,7 @@ export const createSubscriptionCheckout = async (req, res) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
+    log.error('Error creating checkout session:', error);
     res.status(500).json({ message: 'Failed to create checkout session', error: error.message });
   }
 };
@@ -124,7 +125,7 @@ export const cancelUserSubscription = async (req, res) => {
       subscription
     });
   } catch (error) {
-    console.error('Error canceling subscription:', error);
+    log.error('Error canceling subscription:', error);
     res.status(500).json({ message: 'Failed to cancel subscription', error: error.message });
   }
 };
@@ -162,7 +163,7 @@ export const updateUserSubscription = async (req, res) => {
       subscription
     });
   } catch (error) {
-    console.error('Error updating subscription:', error);
+    log.error('Error updating subscription:', error);
     res.status(500).json({ message: 'Failed to update subscription', error: error.message });
   }
 };
@@ -183,7 +184,7 @@ export const getBillingPortal = async (req, res) => {
 
     res.json({ url: session.url });
   } catch (error) {
-    console.error('Error creating billing portal:', error);
+    log.error('Error creating billing portal:', error);
     res.status(500).json({ message: 'Failed to create billing portal', error: error.message });
   }
 };
@@ -210,7 +211,7 @@ export const getUserInvoices = async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('Error getting invoices:', error);
+    log.error('Error getting invoices:', error);
     res.status(500).json({ message: 'Failed to get invoices', error: error.message });
   }
 };
@@ -248,7 +249,7 @@ export const checkFeatureAccess = (feature) => {
       req.subscription = subscription;
       next();
     } catch (error) {
-      console.error('Error checking feature access:', error);
+      log.error('Error checking feature access:', error);
       res.status(500).json({ message: 'Failed to check feature access', error: error.message });
     }
   };
@@ -354,7 +355,7 @@ export const handleWebhook = async (req, res) => {
 
     res.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
+    log.error('Webhook error:', error);
     res.status(400).json({ message: 'Webhook error', error: error.message });
   }
 };
