@@ -4,6 +4,7 @@ import ConversationResponse from "../models/ConversationResponse.js";
 import ConversationSession from "../models/ConversationSession.js";
 import User from "../models/User.js";
 import { generateContextualResponse, generateVariedResponse } from "../lib/conversationAI.js";
+import { log } from '../lib/logger.js';
 
 // Analyze user message to determine intent
 const analyzeUserIntent = (message) => {
@@ -159,7 +160,7 @@ export const startConversation = async (req, res) => {
       suggestedResponses: scenario.suggestedResponses
     });
   } catch (error) {
-    console.error("Error starting conversation:", error);
+    log.error("Error starting conversation:", error);
     res.status(500).json({ error: "Failed to start conversation" });
   }
 };
@@ -337,7 +338,7 @@ export const sendMessage = async (req, res) => {
     
     res.json(response);
   } catch (error) {
-    console.error("Error sending message:", error);
+    log.error("Error sending message:", error);
     res.status(500).json({ error: "Failed to process message" });
   }
 };
@@ -386,7 +387,7 @@ export const getHint = async (req, res) => {
       penaltyPoints: session.performance.hintsUsed * 2
     });
   } catch (error) {
-    console.error("Error getting hints:", error);
+    log.error("Error getting hints:", error);
     res.status(500).json({ error: "Failed to get hints" });
   }
 };
@@ -408,7 +409,7 @@ export const getSessionHistory = async (req, res) => {
     
     res.json(session);
   } catch (error) {
-    console.error("Error getting session:", error);
+    log.error("Error getting session:", error);
     res.status(500).json({ error: "Failed to get session" });
   }
 };
@@ -438,7 +439,7 @@ export const getConversationStats = async (req, res) => {
     
     res.json(stats);
   } catch (error) {
-    console.error("Error getting stats:", error);
+    log.error("Error getting stats:", error);
     res.status(500).json({ error: "Failed to get statistics" });
   }
 };

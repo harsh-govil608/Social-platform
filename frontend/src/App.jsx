@@ -25,10 +25,9 @@ import OnboardingPage from "./pages/OnboardingPage.jsx";
 // import EnhancedLanguageJourneyPage from "./pages/EnhancedLanguageJourneyPage.jsx"; // Beta: disabled
 import AITutorPage from "./pages/AITutorPage.jsx";
 import ConversationPracticePage from "./pages/ConversationPracticePage.jsx";
-// Beta: disabled
-// import PricingPage from "./pages/PricingPage.jsx";
-// import CheckoutPage from "./pages/CheckoutPage.jsx";
-// import SubscriptionPage from "./pages/SubscriptionPage.jsx";
+import PricingPage from "./pages/PricingPage.jsx";
+import CheckoutPage from "./pages/CheckoutPage.jsx";
+import SubscriptionPage from "./pages/SubscriptionPage.jsx";
 // import AchievementsPage from "./pages/AchievementsPage.jsx";
 // import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 // import ReferralPage from "./pages/ReferralPage.jsx";
@@ -363,12 +362,9 @@ const App = () => {
           }
         />
 
-        {/* Beta: Monetization Routes disabled
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/checkout" element={isAuthenticated ? <CheckoutPage /> : <Navigate to="/login" />} />
         <Route path="/subscription" element={isAuthenticated && isOnboarded ? <Layout showSidebar={true}><SubscriptionPage /></Layout> : <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />} />
-        <Route path="/referral" element={isAuthenticated && isOnboarded ? <Layout showSidebar={true}><ReferralPage /></Layout> : <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />} />
-        */}
         </Routes>
         <Toaster />
       </div>

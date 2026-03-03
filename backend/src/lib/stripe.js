@@ -1,7 +1,8 @@
 import Stripe from 'stripe';
+import { log } from './logger.js';
 
 if (!process.env.STRIPE_SECRET_KEY) {
-  console.warn('STRIPE_SECRET_KEY not found in environment variables. Payment features will be disabled.');
+  log.warn('STRIPE_SECRET_KEY not found in environment variables. Payment features will be disabled.');
 }
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;

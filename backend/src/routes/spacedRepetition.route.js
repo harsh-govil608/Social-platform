@@ -17,6 +17,7 @@ import {
     getWeeklyStats,
     seedStarterWords
 } from '../controllers/spacedRepetition.controller.js';
+import { validateAddCustomVocab } from '../validators/learning.validator.js';
 
 const router = express.Router();
 
@@ -281,7 +282,7 @@ router.get('/', getVocabulary);
  *       201:
  *         description: Word added successfully
  */
-router.post('/', addWord);
+router.post('/', validateAddCustomVocab, addWord);
 
 /**
  * @swagger

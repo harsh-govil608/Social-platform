@@ -1,6 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import redis, { usingRealRedis } from '../lib/redis.js';
+import { getAIProvider } from '../lib/ai.js';
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ router.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
+    aiProvider: getAIProvider(),
   });
 });
 

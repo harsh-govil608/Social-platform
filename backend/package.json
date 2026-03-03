@@ -18,6 +18,9 @@
   "type": "module",
   "license": "ISC",
   "description": "",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@sentry/node": "^10.17.0",
     "@sentry/profiling-node": "^10.17.0",
@@ -39,7 +42,6 @@
     "nodemon": "^3.1.10",
     "openai": "^5.16.0",
     "pdfkit": "^0.17.2",
-    "social-platform": "file:..",
     "socket.io": "^4.8.1",
     "stream-chat": "^8.60.0",
     "stripe": "^19.0.0",

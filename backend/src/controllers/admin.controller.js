@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Post from '../models/Post.js';
 import Subscription from '../models/Subscription.js';
+import { log } from '../lib/logger.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -93,7 +94,7 @@ export const getDashboardStats = async (req, res) => {
       topPerformers,
     });
   } catch (error) {
-    console.error('Error in getDashboardStats:', error);
+    log.error('Error in getDashboardStats:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -126,7 +127,7 @@ export const getAllUsers = async (req, res) => {
       total: count,
     });
   } catch (error) {
-    console.error('Error in getAllUsers:', error);
+    log.error('Error in getAllUsers:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -151,7 +152,7 @@ export const updateUserStatus = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error('Error in updateUserStatus:', error);
+    log.error('Error in updateUserStatus:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -194,7 +195,7 @@ export const getRevenueAnalytics = async (req, res) => {
       totalRevenue: totalRevenue[0]?.total || 0,
     });
   } catch (error) {
-    console.error('Error in getRevenueAnalytics:', error);
+    log.error('Error in getRevenueAnalytics:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -208,7 +209,7 @@ export const getContentReports = async (req, res) => {
       message: 'Content reporting system to be implemented',
     });
   } catch (error) {
-    console.error('Error in getContentReports:', error);
+    log.error('Error in getContentReports:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -221,7 +222,7 @@ export const updatePlatformSettings = async (req, res) => {
       message: 'Settings updated successfully',
     });
   } catch (error) {
-    console.error('Error in updatePlatformSettings:', error);
+    log.error('Error in updatePlatformSettings:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

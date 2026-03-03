@@ -1,3 +1,4 @@
+import { log } from './logger.js';
 /**
  * Redis cache implementation for performance optimization
  * Uses ioredis when REDIS_URL is configured, otherwise falls back to in-memory mock
@@ -25,18 +26,18 @@ if (process.env.REDIS_URL && !process.env.REDIS_URL.includes('your_upstash')) {
     // Test connection
     await redis.connect();
     isRealRedis = true;
-    console.log('✅ Connected to Redis');
+    log.info('✅ Connected to Redis');
 
     redis.on('error', (err) => {
-      console.error('❌ Redis connection error:', err);
+      log.error('❌ Redis connection error:', err);
     });
 
     redis.on('reconnecting', () => {
-      console.log('🔄 Redis reconnecting...');
+      log.info('🔄 Redis reconnecting...');
     });
 
   } catch (error) {
-    console.warn('⚠️  Redis connection failed, falling back to in-memory cache:', error.message);
+    log.warn('⚠️  Redis connection failed, falling back to in-memory cache:', error.message);
     redis = null;
   }
 }
@@ -46,7 +47,7 @@ class MockRedis {
   constructor() {
     this.store = new Map();
     this.cleanupInterval = setInterval(() => this._cleanup(), 60000); // Cleanup every minute
-    console.log('⚠️  Using mock Redis (in-memory). Set REDIS_URL for production caching.');
+    log.info('⚠️  Using mock Redis (in-memory). Set REDIS_URL for production caching.');
   }
 
   _cleanup() {
@@ -182,7 +183,7 @@ export const getOrSetCache = async (key, fetchFn, ttl = 300) => {
 
     return data;
   } catch (error) {
-    console.error('Cache error:', error);
+    log.error('Cache error:', error);
     // Fall back to fetching data without cache
     return await fetchFn();
   }
@@ -197,10 +198,10 @@ export const invalidateCache = async (pattern) => {
     const keys = await redis.keys(pattern);
     if (keys.length > 0) {
       await Promise.all(keys.map(key => redis.del(key)));
-      console.log(`🗑️  Invalidated ${keys.length} cache keys matching: ${pattern}`);
+      log.info(`🗑️  Invalidated ${keys.length} cache keys matching: ${pattern}`);
     }
   } catch (error) {
-    console.error('Cache invalidation error:', error);
+    log.error('Cache invalidation error:', error);
   }
 };
 
@@ -210,9 +211,9 @@ export const invalidateCache = async (pattern) => {
 export const clearAllCache = async () => {
   try {
     await redis.flushall();
-    console.log('🗑️  All cache cleared');
+    log.info('🗑️  All cache cleared');
   } catch (error) {
-    console.error('Cache clear error:', error);
+    log.error('Cache clear error:', error);
   }
 };
 
@@ -239,7 +240,7 @@ export const checkRateLimit = async (key, limit, windowSeconds) => {
       resetIn: ttl > 0 ? ttl : windowSeconds
     };
   } catch (error) {
-    console.error('Rate limit check error:', error);
+    log.error('Rate limit check error:', error);
     // Fail open - allow the request if cache fails
     return { allowed: true, remaining: limit, resetIn: windowSeconds };
   }

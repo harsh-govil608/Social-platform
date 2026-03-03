@@ -1,5 +1,6 @@
 import ConversationResponse from "../models/ConversationResponse.js";
 import { generateAIResponse, isAIConfigured } from './ai.js';
+import { log } from './logger.js';
 
 // Response templates with variables for dynamic generation
 const responseTemplates = {
@@ -179,7 +180,7 @@ You are having a natural conversation about ${topic}. Keep your responses:
 
       return polishResponse(aiResponse);
     } catch (error) {
-      console.error('AI response error, falling back to templates:', error);
+      log.error('AI response error, falling back to templates:', error);
       // Fall through to template-based response
     }
   }

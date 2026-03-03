@@ -1,10 +1,11 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import { log } from './logger.js';
 
 export const initSentry = (app) => {
   // Only initialize Sentry in production or if DSN is provided
   if (!process.env.SENTRY_DSN) {
-    console.log('⚠️  Sentry DSN not configured - error monitoring disabled');
+    log.info('⚠️  Sentry DSN not configured - error monitoring disabled');
     return;
   }
 
@@ -56,7 +57,7 @@ export const initSentry = (app) => {
     ],
   });
 
-  console.log('✅ Sentry error monitoring initialized');
+  log.info('✅ Sentry error monitoring initialized');
 };
 
 // Express middleware - return no-op if Sentry not configured

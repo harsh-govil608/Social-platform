@@ -112,6 +112,16 @@ const userSchema=new mongoose.Schema({
         enum: ['user', 'admin'],
         default: 'user'
     },
+    organizationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Organization',
+        default: null
+    },
+    organizationRole: {
+        type: String,
+        enum: ['owner', 'admin', 'instructor', 'member'],
+        default: null
+    },
     isActive: {
         type: Boolean,
         default: true

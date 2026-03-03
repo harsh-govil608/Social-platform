@@ -1,6 +1,7 @@
 import Certificate from '../models/Certificate.js';
 import User from '../models/User.js';
 import { generateCertificatePDF } from '../lib/pdfGenerator.js';
+import { log } from '../lib/logger.js';
 
 /**
  * Get all certificates for the authenticated user
@@ -34,7 +35,7 @@ export async function getUserCertificates(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getUserCertificates:', error);
+        log.error('Error in getUserCertificates:', error);
         res.status(500).json({ message: 'Failed to get certificates' });
     }
 }
@@ -66,7 +67,7 @@ export async function getCertificate(req, res) {
             isOwner
         });
     } catch (error) {
-        console.error('Error in getCertificate:', error);
+        log.error('Error in getCertificate:', error);
         res.status(500).json({ message: 'Failed to get certificate' });
     }
 }
@@ -119,7 +120,7 @@ export async function verifyCertificate(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in verifyCertificate:', error);
+        log.error('Error in verifyCertificate:', error);
         res.status(500).json({ verified: false, message: 'Verification failed' });
     }
 }
@@ -154,7 +155,7 @@ export async function downloadCertificate(req, res) {
 
         res.send(pdfBuffer);
     } catch (error) {
-        console.error('Error in downloadCertificate:', error);
+        log.error('Error in downloadCertificate:', error);
         res.status(500).json({ message: 'Failed to generate certificate PDF' });
     }
 }
@@ -184,7 +185,7 @@ export async function updateCertificateVisibility(req, res) {
             certificate
         });
     } catch (error) {
-        console.error('Error in updateCertificateVisibility:', error);
+        log.error('Error in updateCertificateVisibility:', error);
         res.status(500).json({ message: 'Failed to update certificate' });
     }
 }
@@ -221,7 +222,7 @@ export async function getCertificateStats(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getCertificateStats:', error);
+        log.error('Error in getCertificateStats:', error);
         res.status(500).json({ message: 'Failed to get certificate stats' });
     }
 }
@@ -289,7 +290,7 @@ export async function issueCertificate(req, res) {
             certificate
         });
     } catch (error) {
-        console.error('Error in issueCertificate:', error);
+        log.error('Error in issueCertificate:', error);
         res.status(500).json({ message: 'Failed to issue certificate' });
     }
 }
@@ -314,7 +315,7 @@ export async function getPublicCertificates(req, res) {
             certificates
         });
     } catch (error) {
-        console.error('Error in getPublicCertificates:', error);
+        log.error('Error in getPublicCertificates:', error);
         res.status(500).json({ message: 'Failed to get certificates' });
     }
 }

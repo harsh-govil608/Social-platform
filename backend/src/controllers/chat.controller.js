@@ -1,5 +1,6 @@
 import { generateStreamToken } from "../lib/stream.js";
 import User from "../models/User.js";
+import { log } from "../lib/logger.js";
 
 export async function getStreamToken(req, res) {
   try {
@@ -7,7 +8,7 @@ export async function getStreamToken(req, res) {
 
     res.status(200).json({ token });
   } catch (error) {
-    console.log("Error in getStreamToken controller:", error.message);
+    log.error("Error in getStreamToken controller", { error: error.message });
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -27,7 +28,7 @@ export async function getChatUsers(req, res) {
 
     res.status(200).json({ success: true, users: chatEligibleFriends });
   } catch (error) {
-    console.error("Error in getChatUsers:", error);
+    log.error("Error in getChatUsers", { error: error.message });
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -62,7 +63,7 @@ export async function canMessage(req, res) {
 
     res.status(200).json({ canMessage: true });
   } catch (error) {
-    console.error("Error in canMessage:", error);
+    log.error("Error in canMessage", { error: error.message });
     res.status(500).json({ message: "Internal server error" });
   }
 }

@@ -1,4 +1,5 @@
 import { AnalyticsEvent, DailyStats } from '../models/Analytics.js';
+import { log } from './logger.js';
 
 /**
  * Track an analytics event
@@ -27,10 +28,10 @@ export const trackEvent = async (userId, eventType, eventData = {}, req = null) 
       timestamp: new Date(),
     });
 
-    console.log(`📊 Analytics: ${eventType} tracked for user ${userId}`);
+    log.info(`📊 Analytics: ${eventType} tracked for user ${userId}`);
   } catch (error) {
     // Don't throw error to avoid breaking the main application flow
-    console.error('Error tracking analytics event:', error);
+    log.error('Error tracking analytics event:', error);
   }
 };
 
@@ -73,7 +74,7 @@ export const getUserAnalytics = async (userId, startDate, endDate) => {
       eventsByType: events,
     };
   } catch (error) {
-    console.error('Error getting user analytics:', error);
+    log.error('Error getting user analytics:', error);
     throw error;
   }
 };
@@ -120,7 +121,7 @@ export const getPlatformAnalytics = async (startDate, endDate) => {
 
     return eventStats;
   } catch (error) {
-    console.error('Error getting platform analytics:', error);
+    log.error('Error getting platform analytics:', error);
     throw error;
   }
 };
@@ -157,7 +158,7 @@ export const getRevenueAnalytics = async (startDate, endDate) => {
 
     return revenueEvents;
   } catch (error) {
-    console.error('Error getting revenue analytics:', error);
+    log.error('Error getting revenue analytics:', error);
     throw error;
   }
 };
@@ -215,9 +216,9 @@ export const generateDailyStats = async (date = new Date()) => {
       { upsert: true, new: true }
     );
 
-    console.log(`✅ Daily stats generated for ${date.toDateString()}`);
+    log.info(`✅ Daily stats generated for ${date.toDateString()}`);
   } catch (error) {
-    console.error('Error generating daily stats:', error);
+    log.error('Error generating daily stats:', error);
     throw error;
   }
 };

@@ -3,12 +3,13 @@ import User from '../models/User.js';
 import UserActivity from '../models/UserActivity.js';
 import PronunciationPhrase from '../models/PronunciationPhrase.js';
 import { seedPronunciationPhrases } from '../lib/seedPhrases.js';
+import { log } from '../lib/logger.js';
 
 // Helper function to update XP and Coins in both LearningProgress and UserActivity
 const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
   try {
     if (!userId) {
-      console.warn('updateUserXPAndCoins called with null userId, skipping');
+      log.warn('updateUserXPAndCoins called with null userId, skipping');
       return null;
     }
 
@@ -37,7 +38,7 @@ const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
 
     return userActivity;
   } catch (error) {
-    console.error('Error updating user XP and Coins:', error);
+    log.error('Error updating user XP and Coins', { error: error.message });
     // Don't throw - XP/coins update is non-critical
     return null;
   }
@@ -62,7 +63,7 @@ export async function getLearningProgress(req, res) {
     
     res.status(200).json(progress);
   } catch (error) {
-    console.error('Error fetching learning progress:', error);
+    log.error('Error fetching learning progress:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -91,7 +92,7 @@ export async function updateLearningProgress(req, res) {
     
     res.status(200).json(progress);
   } catch (error) {
-    console.error('Error updating learning progress:', error);
+    log.error('Error updating learning progress:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -146,7 +147,7 @@ export async function completeLesson(req, res) {
       progress
     });
   } catch (error) {
-    console.error('Error completing lesson:', error);
+    log.error('Error completing lesson:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -205,7 +206,7 @@ export async function getDailyChallenges(req, res) {
     
     res.status(200).json(todaysChallenges);
   } catch (error) {
-    console.error('Error fetching daily challenges:', error);
+    log.error('Error fetching daily challenges:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -253,7 +254,7 @@ export async function completeDailyChallenge(req, res) {
       progress
     });
   } catch (error) {
-    console.error('Error completing daily challenge:', error);
+    log.error('Error completing daily challenge:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -294,7 +295,7 @@ export async function getSuggestedPartners(req, res) {
     
     res.status(200).json(partnersWithStats);
   } catch (error) {
-    console.error('Error fetching suggested partners:', error);
+    log.error('Error fetching suggested partners:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -343,7 +344,7 @@ export async function updateLearningPath(req, res) {
     
     res.status(200).json(learningProgress);
   } catch (error) {
-    console.error('Error updating learning path:', error);
+    log.error('Error updating learning path:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -402,7 +403,7 @@ export async function addVocabularyWord(req, res) {
       progress
     });
   } catch (error) {
-    console.error('Error adding vocabulary word:', error);
+    log.error('Error adding vocabulary word:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -458,7 +459,7 @@ export async function recordPracticeSession(req, res) {
       progress
     });
   } catch (error) {
-    console.error('Error recording practice session:', error);
+    log.error('Error recording practice session:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -485,7 +486,7 @@ export async function getPronunciationPhrases(req, res) {
     
     // If no phrases exist, seed the database
     if (phrases.length === 0) {
-      console.log('No phrases found, seeding database...');
+      log.debug('No phrases found, seeding database');
       await seedPronunciationPhrases();
       phrases = await PronunciationPhrase.find(query)
         .sort({ order: 1, createdAt: 1 })
@@ -500,7 +501,7 @@ export async function getPronunciationPhrases(req, res) {
     
     res.status(200).json(phrasesWithProgress);
   } catch (error) {
-    console.error('Error fetching pronunciation phrases:', error);
+    log.error('Error fetching pronunciation phrases:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -556,7 +557,7 @@ export async function completePronunciationPhrase(req, res) {
       progress
     });
   } catch (error) {
-    console.error('Error recording phrase completion:', error);
+    log.error('Error recording phrase completion:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -596,7 +597,7 @@ export async function getPracticeStats(req, res) {
       recentPractice
     });
   } catch (error) {
-    console.error('Error fetching practice stats:', error);
+    log.error('Error fetching practice stats:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
@@ -682,7 +683,7 @@ export async function getAchievements(req, res) {
     
     res.status(200).json(achievements);
   } catch (error) {
-    console.error('Error fetching achievements:', error);
+    log.error('Error fetching achievements:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }

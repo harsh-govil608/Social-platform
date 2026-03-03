@@ -1,6 +1,7 @@
 import Organization from '../models/Organization.js';
 import User from '../models/User.js';
 import { createCustomer, createCheckoutSession, STRIPE_PRICES } from '../lib/stripe.js';
+import { log } from '../lib/logger.js';
 
 // Create organization
 export const createOrganization = async (req, res) => {
@@ -42,7 +43,7 @@ export const createOrganization = async (req, res) => {
       organization
     });
   } catch (error) {
-    console.error('Error creating organization:', error);
+    log.error('Error creating organization:', error);
     res.status(500).json({ message: 'Failed to create organization', error: error.message });
   }
 };
@@ -68,7 +69,7 @@ export const getOrganization = async (req, res) => {
 
     res.json({ organization });
   } catch (error) {
-    console.error('Error getting organization:', error);
+    log.error('Error getting organization:', error);
     res.status(500).json({ message: 'Failed to get organization' });
   }
 };
@@ -86,7 +87,7 @@ export const getUserOrganizations = async (req, res) => {
 
     res.json({ organizations });
   } catch (error) {
-    console.error('Error getting user organizations:', error);
+    log.error('Error getting user organizations:', error);
     res.status(500).json({ message: 'Failed to get organizations' });
   }
 };
@@ -129,7 +130,7 @@ export const inviteMember = async (req, res) => {
       organization
     });
   } catch (error) {
-    console.error('Error inviting member:', error);
+    log.error('Error inviting member:', error);
     res.status(500).json({ message: error.message || 'Failed to invite member' });
   }
 };
@@ -162,7 +163,7 @@ export const removeMember = async (req, res) => {
       organization
     });
   } catch (error) {
-    console.error('Error removing member:', error);
+    log.error('Error removing member:', error);
     res.status(500).json({ message: 'Failed to remove member' });
   }
 };
@@ -209,7 +210,7 @@ export const updateMemberRole = async (req, res) => {
       organization
     });
   } catch (error) {
-    console.error('Error updating member role:', error);
+    log.error('Error updating member role:', error);
     res.status(500).json({ message: 'Failed to update member role' });
   }
 };
@@ -245,7 +246,7 @@ export const updateOrganization = async (req, res) => {
       organization
     });
   } catch (error) {
-    console.error('Error updating organization:', error);
+    log.error('Error updating organization:', error);
     res.status(500).json({ message: 'Failed to update organization' });
   }
 };
@@ -306,8 +307,81 @@ export const createOrgSubscriptionCheckout = async (req, res) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (error) {
-    console.error('Error creating org subscription checkout:', error);
+    log.error('Error creating org subscription checkout:', error);
     res.status(500).json({ message: 'Failed to create checkout session', error: error.message });
+  }
+};
+
+// Bulk invite members
+export const bulkInviteMembers = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { emails, role = 'member' } = req.body;
+
+    if (!Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({ message: 'emails must be a non-empty array' });
+    }
+
+    const organization = await Organization.findOne({ slug });
+    if (!organization) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+
+    const result = {
+      added: [],
+      notFound: [],
+      alreadyMember: [],
+      seatLimitReached: false
+    };
+
+    for (const email of emails) {
+      // Check seat limit before each addition
+      if (organization.subscription.usedSeats >= organization.subscription.seats) {
+        result.seatLimitReached = true;
+        break;
+      }
+
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (!user) {
+        result.notFound.push(email);
+        continue;
+      }
+
+      if (organization.isMember(user._id)) {
+        result.alreadyMember.push(email);
+        continue;
+      }
+
+      organization.addMember(user._id, role);
+      result.added.push(email);
+    }
+
+    await organization.save();
+
+    res.json({ message: 'Bulk invite completed', result });
+  } catch (error) {
+    log.error('Error in bulkInviteMembers:', error);
+    res.status(500).json({ message: error.message || 'Failed to bulk invite members' });
+  }
+};
+
+// Get organization branding
+export const getOrgBranding = async (req, res) => {
+  try {
+    const organization = req.organization; // set by orgMemberRoute
+
+    const branding = {
+      logo: organization.branding?.logo || null,
+      primaryColor: organization.branding?.primaryColor || '#3B82F6',
+      secondaryColor: organization.branding?.secondaryColor || '#8B5CF6',
+      customDomain: organization.branding?.customDomain || null,
+      emailFromName: organization.branding?.emailFromName || organization.name
+    };
+
+    res.json({ branding });
+  } catch (error) {
+    log.error('Error getting org branding:', error);
+    res.status(500).json({ message: 'Failed to get branding' });
   }
 };
 
@@ -369,7 +443,7 @@ export const getOrganizationAnalytics = async (req, res) => {
 
     res.json({ analytics });
   } catch (error) {
-    console.error('Error getting organization analytics:', error);
+    log.error('Error getting organization analytics:', error);
     res.status(500).json({ message: 'Failed to get analytics' });
   }
 };

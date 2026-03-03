@@ -1,4 +1,5 @@
 import { trackEvent } from '../lib/analytics.js';
+import { log } from '../lib/logger.js';
 
 /**
  * Middleware to automatically track certain events
@@ -25,7 +26,7 @@ export const trackAnalytics = (eventType) => {
         }
 
         trackEvent(req.user._id, eventType, eventData, req).catch(err => {
-          console.error('Analytics tracking error:', err);
+          log.error('Analytics tracking error:', err);
         });
       }
 
@@ -48,7 +49,7 @@ export const trackPageView = async (req, res, next) => {
     };
 
     await trackEvent(req.user._id, 'profile_view', eventData, req).catch(err => {
-      console.error('Page view tracking error:', err);
+      log.error('Page view tracking error:', err);
     });
   }
 

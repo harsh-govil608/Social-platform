@@ -97,7 +97,7 @@ const referralSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Index for efficient lookups
-referralSchema.index({ referralCode: 1 });
+// referralCode index is already defined via unique:true on the field
 referralSchema.index({ referrer: 1 });
 referralSchema.index({ 'referrals.user': 1 });
 

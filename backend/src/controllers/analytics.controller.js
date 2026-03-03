@@ -1,5 +1,6 @@
 import UserAnalytics from "../models/UserAnalytics.js";
 import User from "../models/User.js";
+import { log } from '../lib/logger.js';
 
 // Initialize analytics for a new user
 export const initializeUserAnalytics = async (userId) => {
@@ -17,7 +18,7 @@ export const initializeUserAnalytics = async (userId) => {
 
     return analytics;
   } catch (error) {
-    console.error("Error initializing user analytics:", error);
+    log.error("Error initializing user analytics:", error);
     throw error;
   }
 };
@@ -46,7 +47,7 @@ export const startSession = async (req, res) => {
       sessionId: analytics.sessions[analytics.sessions.length - 1]._id,
     });
   } catch (error) {
-    console.error("Error starting session:", error.message);
+    log.error("Error starting session:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to start session",
@@ -78,7 +79,7 @@ export const endSession = async (req, res) => {
       duration: lastSession?.duration || 0,
     });
   } catch (error) {
-    console.error("Error ending session:", error.message);
+    log.error("Error ending session:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to end session",
@@ -120,7 +121,7 @@ export const trackActivity = async (req, res) => {
       message: "Activity tracked",
     });
   } catch (error) {
-    console.error("Error tracking activity:", error.message);
+    log.error("Error tracking activity:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to track activity",
@@ -167,7 +168,7 @@ export const updateDailyTaskCompletion = async (req, res) => {
       streak: analytics.streakData.currentStreak,
     });
   } catch (error) {
-    console.error("Error updating daily task completion:", error.message);
+    log.error("Error updating daily task completion:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to update daily task completion",
@@ -206,7 +207,7 @@ export const getUserAnalytics = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting user analytics:", error.message);
+    log.error("Error getting user analytics:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to fetch analytics",
@@ -239,7 +240,7 @@ export const getPlatformAnalytics = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting platform analytics:", error.message);
+    log.error("Error getting platform analytics:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to fetch platform analytics",
@@ -309,7 +310,7 @@ export const getRetentionCohorts = async (req, res) => {
       cohorts,
     });
   } catch (error) {
-    console.error("Error getting retention cohorts:", error.message);
+    log.error("Error getting retention cohorts:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to fetch cohorts",

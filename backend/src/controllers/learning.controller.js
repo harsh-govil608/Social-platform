@@ -5,12 +5,13 @@ import LearningProgress from "../models/LearningProgress.js";
 import User from "../models/User.js";
 import UserActivity from "../models/UserActivity.js";
 import { CHALLENGE_SEEDS, VOCABULARY_SEEDS, VIDEO_SEEDS } from "../data/seedChallengesAndVocab.js";
+import { log } from "../lib/logger.js";
 
 // Helper function to update XP and Coins in both LearningProgress and UserActivity
 const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
   try {
     if (!userId) {
-      console.warn('updateUserXPAndCoins called with null userId, skipping');
+      log.warn('updateUserXPAndCoins called with null userId, skipping');
       return null;
     }
 
@@ -44,7 +45,7 @@ const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
 
     return userActivity;
   } catch (error) {
-    console.error('Error updating user XP and Coins:', error);
+    log.error('Error updating user XP and Coins', { error: error.message });
     // Don't throw - XP/coins update is non-critical
     return null;
   }
@@ -88,7 +89,7 @@ export const getLearningProgress = async (req, res) => {
     
     res.status(200).json(progress);
   } catch (error) {
-    console.error("Error fetching learning progress:", error);
+    log.error("Error fetching learning progress", { error: error.message });
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -105,16 +106,16 @@ export const getDailyChallenges = async (req, res) => {
       const user = await User.findById(userId);
       language = user.learningLanguage || "spanish";
       
-      console.log("Fetching challenges for user:", userId, "language:", language);
-      
+      log.debug("Fetching challenges for user", { userId, language });
+
       // Get user's progress to determine level
       const progress = await LearningProgress.findOne({ user: userId });
       level = progress?.level || "beginner";
     } else {
-      console.log("Fetching challenges without authentication - using defaults");
+      log.debug("Fetching challenges without authentication - using defaults");
     }
-    
-    console.log("User level:", level);
+
+    log.debug("User level", { level });
     
     // Get ALL challenges for the language to show variety
     let allChallenges = await DailyChallenge.find({
@@ -133,12 +134,12 @@ export const getDailyChallenges = async (req, res) => {
       }
     }
 
-    console.log("Total challenges in DB for", language, ":", allChallenges.length);
+    log.debug("Total challenges in DB", { language, count: allChallenges.length });
     
     // Return all available challenges (frontend will handle display)
     const challenges = allChallenges;
     
-    console.log("Returning challenges:", challenges.length);
+    log.debug("Returning challenges", { count: challenges.length });
     
     if (!req.user) {
       // Return challenges without completion status for unauthenticated users
@@ -167,7 +168,7 @@ export const getDailyChallenges = async (req, res) => {
     
     res.status(200).json(challengesWithStatus);
   } catch (error) {
-    console.error("Error fetching daily challenges:", error);
+    log.error("Error fetching daily challenges:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -232,7 +233,7 @@ export const completeDailyChallenge = async (req, res) => {
       newStreak: progress.currentStreak || 0,
     });
   } catch (error) {
-    console.error("Error completing challenge:", error);
+    log.error("Error completing challenge:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -268,7 +269,7 @@ export const getDailyVocabulary = async (req, res) => {
 
     res.status(200).json(words);
   } catch (error) {
-    console.error("Error fetching daily vocabulary:", error);
+    log.error("Error fetching daily vocabulary:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -322,7 +323,7 @@ export const masterVocabulary = async (req, res) => {
       newTotalXP: progress.totalXP || 0,
     });
   } catch (error) {
-    console.error("Error mastering vocabulary:", error);
+    log.error("Error mastering vocabulary:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -376,7 +377,7 @@ export const getLearningVideos = async (req, res) => {
     
     res.status(200).json(videosWithStatus);
   } catch (error) {
-    console.error("Error fetching learning videos:", error);
+    log.error("Error fetching learning videos:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -424,7 +425,7 @@ export const completeVideo = async (req, res) => {
       newTotalXP: 0,
     });
   } catch (error) {
-    console.error("Error completing video:", error);
+    log.error("Error completing video:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -462,7 +463,7 @@ export const getWeeklyStats = async (req, res) => {
       goalProgress: (totalXP / progress.weeklyStats.weeklyGoal) * 100
     });
   } catch (error) {
-    console.error("Error fetching weekly stats:", error);
+    log.error("Error fetching weekly stats:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -505,7 +506,7 @@ export const getLearningStats = async (req, res) => {
       challengesCompleted: progress.dailyChallenges?.length || 0,
     });
   } catch (error) {
-    console.error("Error fetching learning stats:", error);
+    log.error("Error fetching learning stats:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -538,7 +539,7 @@ export const getLeaderboard = async (req, res) => {
       currentUserRank: null // Will be calculated if needed
     });
   } catch (error) {
-    console.error("Error fetching leaderboard:", error);
+    log.error("Error fetching leaderboard:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -581,7 +582,7 @@ export const getSubscriptionStatus = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error fetching subscription status:", error);
+    log.error("Error fetching subscription status:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -602,7 +603,7 @@ export const upgradeSubscription = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error upgrading subscription:", error);
+    log.error("Error upgrading subscription:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -652,7 +653,7 @@ export const seedLearningData = async (req, res) => {
       vocabAdded
     });
   } catch (error) {
-    console.error("Error seeding learning data:", error);
+    log.error("Error seeding learning data:", error);
     res.status(500).json({ message: "Failed to seed learning data" });
   }
 };

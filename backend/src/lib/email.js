@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { log } from './logger.js';
 
 /**
  * Email service using Nodemailer
@@ -35,7 +36,7 @@ const createTransporter = () => {
   }
 
   // Dev fallback: log to console
-  console.log('⚠️  Email service not configured. Add RESEND_API_KEY to .env to enable real emails.');
+  log.info('⚠️  Email service not configured. Add RESEND_API_KEY to .env to enable real emails.');
   return null;
 };
 
@@ -50,8 +51,8 @@ export const sendEmail = async (options) => {
     const { to, subject, html, text } = options;
 
     if (!transporter) {
-      console.log('📧 Email (development):', { to, subject });
-      console.log(text || html);
+      log.info('📧 Email (development):', { to, subject });
+      log.info(text || html);
       return { success: true, messageId: 'dev-' + Date.now() };
     }
 
@@ -64,11 +65,11 @@ export const sendEmail = async (options) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent:', info.messageId);
+    log.info('✅ Email sent:', info.messageId);
 
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Email sending failed:', error);
+    log.error('❌ Email sending failed:', error);
     throw error;
   }
 };

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import User from "../models/User.js";
 import { sendEmail } from "../lib/email.js";
+import { log } from '../lib/logger.js';
 
 // Generate verification token helper
 const generateVerificationToken = () => {
@@ -77,7 +78,7 @@ export async function sendVerificationEmail(req, res) {
         });
 
     } catch (error) {
-        console.error("Error in sendVerificationEmail:", error);
+        log.error("Error in sendVerificationEmail:", error);
         res.status(500).json({ message: "Failed to send verification email" });
     }
 }
@@ -124,7 +125,7 @@ export async function verifyEmail(req, res) {
         });
 
     } catch (error) {
-        console.error("Error in verifyEmail:", error);
+        log.error("Error in verifyEmail:", error);
         res.status(500).json({ message: "Failed to verify email" });
     }
 }
@@ -200,7 +201,7 @@ export async function resendVerificationEmail(req, res) {
                 text: `Hi ${user.fullName}, verify your email: ${verificationUrl}`
             });
         } catch (emailError) {
-            console.error("Failed to send verification email:", emailError);
+            log.error("Failed to send verification email:", emailError);
         }
 
         res.status(200).json({
@@ -209,7 +210,7 @@ export async function resendVerificationEmail(req, res) {
         });
 
     } catch (error) {
-        console.error("Error in resendVerificationEmail:", error);
+        log.error("Error in resendVerificationEmail:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -230,7 +231,7 @@ export async function getVerificationStatus(req, res) {
         });
 
     } catch (error) {
-        console.error("Error in getVerificationStatus:", error);
+        log.error("Error in getVerificationStatus:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }

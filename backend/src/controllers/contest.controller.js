@@ -1,6 +1,7 @@
 import Contest from '../models/Contest.js';
 import ContestSubmission from '../models/ContestSubmission.js';
 import mongoose from 'mongoose';
+import { log } from '../lib/logger.js';
 
 /**
  * Get list of contests
@@ -53,7 +54,7 @@ export async function getContests(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getContests:', error);
+        log.error('Error in getContests:', error);
         res.status(500).json({ message: 'Failed to get contests' });
     }
 }
@@ -101,7 +102,7 @@ export async function getContest(req, res) {
             contest: contestObj
         });
     } catch (error) {
-        console.error('Error in getContest:', error);
+        log.error('Error in getContest:', error);
         res.status(500).json({ message: 'Failed to get contest' });
     }
 }
@@ -139,7 +140,7 @@ export async function registerForContest(req, res) {
             message: 'Successfully registered for the contest'
         });
     } catch (error) {
-        console.error('Error in registerForContest:', error);
+        log.error('Error in registerForContest:', error);
         res.status(500).json({ message: 'Failed to register for contest' });
     }
 }
@@ -284,7 +285,7 @@ export async function submitSolution(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in submitSolution:', error);
+        log.error('Error in submitSolution:', error);
         res.status(500).json({ message: 'Failed to submit solution' });
     }
 }
@@ -355,7 +356,7 @@ export async function getLeaderboard(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getLeaderboard:', error);
+        log.error('Error in getLeaderboard:', error);
         res.status(500).json({ message: 'Failed to get leaderboard' });
     }
 }
@@ -384,7 +385,7 @@ export async function getUserSubmissions(req, res) {
             }))
         });
     } catch (error) {
-        console.error('Error in getUserSubmissions:', error);
+        log.error('Error in getUserSubmissions:', error);
         res.status(500).json({ message: 'Failed to get submissions' });
     }
 }
@@ -438,7 +439,7 @@ export async function createContest(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in createContest:', error);
+        log.error('Error in createContest:', error);
         res.status(500).json({ message: 'Failed to create contest' });
     }
 }

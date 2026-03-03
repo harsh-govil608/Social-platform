@@ -257,3 +257,44 @@ export async function getPracticeStats() {
   const response = await axiosInstance.get("/language-journey/practice/stats");
   return response.data;
 }
+
+// Organization APIs
+export async function createOrganization(data) {
+  const response = await axiosInstance.post("/organization/create", data);
+  return response.data;
+}
+
+export async function getOrganization(slug) {
+  const response = await axiosInstance.get(`/organization/${slug}`);
+  return response.data;
+}
+
+export async function getUserOrganizations() {
+  const response = await axiosInstance.get("/organization/my-organizations");
+  return response.data;
+}
+
+export async function inviteOrgMember(slug, email, role = 'member') {
+  const response = await axiosInstance.post(`/organization/${slug}/invite`, { email, role });
+  return response.data;
+}
+
+export async function bulkInviteOrgMembers(slug, emails, role = 'member') {
+  const response = await axiosInstance.post(`/organization/${slug}/invite/bulk`, { emails, role });
+  return response.data;
+}
+
+export async function getOrgBranding(slug) {
+  const response = await axiosInstance.get(`/organization/${slug}/branding`);
+  return response.data;
+}
+
+export async function getOrgAnalytics(slug) {
+  const response = await axiosInstance.get(`/organization/${slug}/analytics`);
+  return response.data;
+}
+
+export async function createOrgCheckout(slug, tier, seats) {
+  const response = await axiosInstance.post(`/organization/${slug}/subscription/checkout`, { tier, seats });
+  return response.data;
+}

@@ -1,4 +1,5 @@
 import redis, { getOrSetCache, invalidateCache } from '../lib/redis.js';
+import { log } from '../lib/logger.js';
 
 /**
  * Middleware to cache GET requests
@@ -22,12 +23,12 @@ export const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
       const cached = await redis.get(cacheKey);
 
       if (cached) {
-        console.log(`✅ Cache hit: ${cacheKey}`);
+        log.info(`✅ Cache hit: ${cacheKey}`);
         return res.json(JSON.parse(cached));
       }
 
       // Cache miss - continue to route handler
-      console.log(`❌ Cache miss: ${cacheKey}`);
+      log.info(`❌ Cache miss: ${cacheKey}`);
 
       // Store original res.json
       const originalJson = res.json.bind(res);
@@ -36,7 +37,7 @@ export const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
       res.json = function (data) {
         // Cache the response
         redis.set(cacheKey, JSON.stringify(data), 'EX', ttl).catch(err => {
-          console.error('Error caching response:', err);
+          log.error('Error caching response:', err);
         });
 
         // Call original json method
@@ -45,7 +46,7 @@ export const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
 
       next();
     } catch (error) {
-      console.error('Cache middleware error:', error);
+      log.error('Cache middleware error:', error);
       next();
     }
   };
@@ -66,7 +67,7 @@ export const invalidateCacheMiddleware = (pattern) => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         const cachePattern = typeof pattern === 'function' ? pattern(req) : pattern;
         invalidateCache(cachePattern).catch(err => {
-          console.error('Error invalidating cache:', err);
+          log.error('Error invalidating cache:', err);
         });
       }
 

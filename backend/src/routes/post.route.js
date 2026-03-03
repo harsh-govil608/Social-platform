@@ -24,6 +24,7 @@ router.post("/",
         { name: 'videos', maxCount: 2 }
     ]),
     handleUploadError,
+    validateCreatePost,
     createPost
 );
 router.get("/", getFeedPosts); // Default route for getting posts

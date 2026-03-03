@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Zap, Crown, Rocket } from 'lucide-react';
+import { Check, Zap, Crown, Rocket, Building2, TrendingUp, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import useAuthUser from '../hooks/useAuthUser';
 
@@ -65,6 +65,67 @@ const PricingPage = () => {
         'Early access to new features'
       ],
       tier: 'pro',
+      highlight: false
+    }
+  ];
+
+  const orgPlans = [
+    {
+      name: 'Starter',
+      icon: Building2,
+      price: '$99',
+      priceSuffix: '/month',
+      description: 'Perfect for small teams and bootcamps',
+      seats: 'Up to 50 seats',
+      features: [
+        'Team analytics dashboard',
+        'Bulk user management',
+        'Basic white-label branding',
+        'Admin controls & roles',
+        'Shared learning paths',
+        '14-day free trial'
+      ],
+      tier: 'starter',
+      cta: 'Contact Sales',
+      highlight: false
+    },
+    {
+      name: 'Growth',
+      icon: TrendingUp,
+      price: '$299',
+      priceSuffix: '/month',
+      description: 'For growing organizations',
+      seats: 'Up to 200 seats',
+      features: [
+        'Everything in Starter',
+        'Custom domain (white-label)',
+        'Advanced analytics & reports',
+        'Custom curriculum builder',
+        'Priority support',
+        'API access'
+      ],
+      tier: 'growth',
+      cta: 'Contact Sales',
+      highlight: true,
+      badge: 'Popular'
+    },
+    {
+      name: 'Enterprise',
+      icon: Shield,
+      price: 'Custom',
+      priceSuffix: '',
+      description: 'For large institutions & enterprises',
+      seats: 'Unlimited seats',
+      features: [
+        'Everything in Growth',
+        'SSO / SAML integration',
+        'Dedicated account manager',
+        'SLA & uptime guarantee',
+        'Custom integrations',
+        'Onboarding & training'
+      ],
+      tier: 'enterprise',
+      cta: 'Contact Sales',
       highlight: false
     }
   ];
@@ -166,6 +227,68 @@ const PricingPage = () => {
               </div>
             );
           })}
+        </div>
+
+        {/* B2B / Teams Section */}
+        <div className="mb-16">
+          <div className="text-center mb-10">
+            <h2 className="text-4xl font-bold mb-3">For Teams & Organizations</h2>
+            <p className="text-lg text-base-content/70">
+              Empower your whole team with shared analytics, white-label branding, and bulk user management.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {orgPlans.map((plan) => {
+              const Icon = plan.icon;
+              return (
+                <div
+                  key={plan.tier}
+                  className={`card bg-base-100 shadow-xl ${plan.highlight ? 'ring-2 ring-secondary' : ''}`}
+                >
+                  <div className="card-body">
+                    {plan.badge && (
+                      <div className="badge badge-secondary absolute top-4 right-4">
+                        {plan.badge}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon className="w-8 h-8 text-secondary" />
+                      <h3 className="card-title text-2xl">{plan.name}</h3>
+                    </div>
+
+                    <p className="text-base-content/70 mb-2">{plan.description}</p>
+
+                    <div className="mb-2">
+                      <span className="text-4xl font-bold">{plan.price}</span>
+                      {plan.priceSuffix && (
+                        <span className="text-base-content/60 ml-1">{plan.priceSuffix}</span>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-base-content/60 mb-4">{plan.seats}</p>
+
+                    <a
+                      href="mailto:sales@lingoworld.app"
+                      className={`btn btn-block mb-6 ${plan.highlight ? 'btn-secondary' : 'btn-outline btn-secondary'}`}
+                    >
+                      {plan.cta}
+                    </a>
+
+                    <div className="space-y-3">
+                      {plan.features.map((feature, idx) => (
+                        <div key={idx} className="flex items-start gap-2">
+                          <Check className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
+                          <span className="text-sm">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* FAQ Section */}

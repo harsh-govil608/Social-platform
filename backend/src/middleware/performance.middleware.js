@@ -1,4 +1,5 @@
 import { captureMessage } from '../lib/sentry.js';
+import { log } from '../lib/logger.js';
 
 /**
  * Performance monitoring middleware
@@ -33,7 +34,7 @@ export const performanceMonitoring = (options = {}) => {
 
       // Log slow requests
       if (duration > slowRequestThreshold && logSlowRequests) {
-        console.warn(`⚠️  Slow request detected: ${req.method} ${req.path} - ${duration}ms`);
+        log.warn(`⚠️  Slow request detected: ${req.method} ${req.path} - ${duration}ms`);
 
         // Send to Sentry
         if (process.env.NODE_ENV === 'production') {
@@ -52,7 +53,7 @@ export const performanceMonitoring = (options = {}) => {
 
       // Track all requests if enabled
       if (trackAllRequests) {
-        console.log(`${req.method} ${req.path} - ${duration}ms - ${res.statusCode}`);
+        log.info(`${req.method} ${req.path} - ${duration}ms - ${res.statusCode}`);
       }
 
       // Store metrics for potential aggregation
@@ -172,7 +173,7 @@ export const memoryMonitoring = () => {
 
     // Warn if memory usage is high
     if (heapPercentage > 90) {
-      console.warn(
+      log.warn(
         `⚠️  High memory usage: ${heapUsedMB}MB / ${heapTotalMB}MB (${heapPercentage}%)`
       );
 
@@ -197,7 +198,7 @@ export const trackQueryPerformance = (model, operation, duration) => {
   const threshold = 100; // ms
 
   if (duration > threshold) {
-    console.warn(
+    log.warn(
       `⚠️  Slow database query: ${model}.${operation} - ${duration}ms`
     );
   }

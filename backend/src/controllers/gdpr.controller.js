@@ -3,6 +3,7 @@ import Post from '../models/Post.js';
 import { AnalyticsEvent } from '../models/Analytics.js';
 import Subscription from '../models/Subscription.js';
 import { sendEmail } from '../lib/email.js';
+import { log } from '../lib/logger.js';
 
 /**
  * Export user data (GDPR compliance)
@@ -75,9 +76,9 @@ export const exportUserData = async (req, res) => {
 
     res.json(exportData);
 
-    console.log(`✅ User data exported for user: ${userId}`);
+    log.info("User data exported", { userId });
   } catch (error) {
-    console.error('Error exporting user data:', error);
+    log.error('Error exporting user data', { error: error.message });
     res.status(500).json({ message: 'Failed to export user data' });
   }
 };
@@ -123,9 +124,9 @@ export const requestAccountDeletion = async (req, res) => {
       deletionDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
 
-    console.log(`⚠️  Account deletion requested for user: ${userId}`);
+    log.info("Account deletion requested", { userId });
   } catch (error) {
-    console.error('Error requesting account deletion:', error);
+    log.error('Error requesting account deletion', { error: error.message });
     res.status(500).json({ message: 'Failed to process deletion request' });
   }
 };
@@ -172,9 +173,9 @@ export const cancelAccountDeletion = async (req, res) => {
       message: 'Account deletion cancelled',
     });
 
-    console.log(`✅ Account deletion cancelled for user: ${userId}`);
+    log.info("Account deletion cancelled", { userId });
   } catch (error) {
-    console.error('Error cancelling account deletion:', error);
+    log.error('Error cancelling account deletion', { error: error.message });
     res.status(500).json({ message: 'Failed to cancel deletion' });
   }
 };
@@ -209,11 +210,11 @@ export const deleteUserAccount = async (userId) => {
     // Delete the user
     await User.findByIdAndDelete(userId);
 
-    console.log(`✅ User account permanently deleted: ${userId}`);
+    log.info("User account permanently deleted", { userId });
 
     return { success: true };
   } catch (error) {
-    console.error('Error deleting user account:', error);
+    log.error('Error deleting user account', { error: error.message });
     throw error;
   }
 };
@@ -230,17 +231,17 @@ export const processPendingDeletions = async () => {
       deletionRequestedAt: { $lte: thirtyDaysAgo },
     });
 
-    console.log(`📋 Processing ${usersToDelete.length} pending account deletions...`);
+    log.info(`Processing pending account deletions`, { count: usersToDelete.length });
 
     for (const user of usersToDelete) {
       await deleteUserAccount(user._id);
     }
 
-    console.log(`✅ Processed ${usersToDelete.length} account deletions`);
+    log.info(`Processed account deletions`, { count: usersToDelete.length });
 
     return { deleted: usersToDelete.length };
   } catch (error) {
-    console.error('Error processing pending deletions:', error);
+    log.error('Error processing pending deletions', { error: error.message });
     throw error;
   }
 };

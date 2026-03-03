@@ -2,30 +2,31 @@ import DailyTask from "../models/DailyTask.js";
 import User from "../models/User.js";
 import Vocabulary from "../models/vocabulary.model.js";
 import UserAnalytics from "../models/UserAnalytics.js";
+import { log } from "../lib/logger.js";
 
 // Get today's task for the authenticated user
 export const getTodayTask = async (req, res) => {
   try {
     const userId = req.user._id;
-    console.log("getTodayTask called for user:", userId);
+    log.debug("getTodayTask called", { userId });
 
     let todayTask = await DailyTask.getTodayTask(userId);
-    console.log("Existing task found:", !!todayTask, todayTask?._id, "status:", todayTask?.status);
+    log.debug("Existing task lookup", { found: !!todayTask, taskId: todayTask?._id, status: todayTask?.status });
 
     // If no task exists, create one
     if (!todayTask) {
       // Determine task type based on user's learning preferences or rotation
       const taskType = await determineTaskType(userId);
-      console.log("Creating new task, type:", taskType);
+      log.debug("Creating new task", { taskType });
       todayTask = await DailyTask.createDailyTask(userId, taskType);
-      console.log("Task created:", todayTask._id);
+      log.debug("Task created", { taskId: todayTask._id });
     }
 
     // Populate content if needed
     await populateTaskContent(todayTask);
 
     const currentStep = todayTask.getCurrentStep();
-    console.log("Returning task, currentStep:", currentStep, "completedSteps:", JSON.stringify(todayTask.completedSteps));
+    log.debug("Returning task", { currentStep });
 
     res.status(200).json({
       success: true,
@@ -33,7 +34,7 @@ export const getTodayTask = async (req, res) => {
       currentStep,
     });
   } catch (error) {
-    console.error("Error in getTodayTask:", error.message, error.stack);
+    log.error("Error in getTodayTask", { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: "Failed to fetch today's task",
@@ -46,9 +47,9 @@ export const getTodayTask = async (req, res) => {
 export const startTask = async (req, res) => {
   try {
     const userId = req.user._id;
-    console.log("startTask called for user:", userId);
+    log.debug("startTask called", { userId });
     const todayTask = await DailyTask.getTodayTask(userId);
-    console.log("startTask - task found:", !!todayTask, "taskStarted:", todayTask?.completedSteps?.taskStarted);
+    log.debug("startTask - task found", { found: !!todayTask, taskStarted: todayTask?.completedSteps?.taskStarted });
 
     if (!todayTask) {
       return res.status(404).json({
@@ -66,9 +67,8 @@ export const startTask = async (req, res) => {
 
     todayTask.completedSteps.taskStarted = true;
     todayTask.status = "in_progress";
-    console.log("startTask - saving task...");
     await todayTask.save();
-    console.log("startTask - task saved successfully");
+    log.debug("startTask - task saved successfully", { taskId: todayTask._id });
 
     res.status(200).json({
       success: true,
@@ -77,7 +77,7 @@ export const startTask = async (req, res) => {
       currentStep: todayTask.getCurrentStep(),
     });
   } catch (error) {
-    console.error("Error in startTask:", error.message, error.stack);
+    log.error("Error in startTask", { error: error.message });
     res.status(500).json({
       success: false,
       message: "Failed to start task",
@@ -131,7 +131,7 @@ export const completeAIPractice = async (req, res) => {
       currentStep: todayTask.getCurrentStep(),
     });
   } catch (error) {
-    console.error("Error in completeAIPractice:", error.message);
+    log.error("Error in completeAIPractice", { error: error.message });
     res.status(500).json({
       success: false,
       message: "Failed to complete AI practice",
@@ -183,7 +183,7 @@ export const offerPartnerInteraction = async (req, res) => {
       currentStep: todayTask.getCurrentStep(),
     });
   } catch (error) {
-    console.error("Error in offerPartnerInteraction:", error.message);
+    log.error("Error in offerPartnerInteraction", { error: error.message });
     res.status(500).json({
       success: false,
       message: "Failed to process partner interaction",
@@ -272,7 +272,7 @@ export const updateStreakAndComplete = async (req, res) => {
 
       await analytics.save();
     } catch (analyticsError) {
-      console.error("Error updating analytics:", analyticsError);
+      log.error("Error updating analytics", { error: analyticsError.message });
       // Don't fail the request if analytics update fails
     }
 
@@ -284,7 +284,7 @@ export const updateStreakAndComplete = async (req, res) => {
       showCelebration: true,
     });
   } catch (error) {
-    console.error("Error in updateStreakAndComplete:", error.message);
+    log.error("Error in updateStreakAndComplete", { error: error.message });
     res.status(500).json({
       success: false,
       message: "Failed to complete task",
@@ -319,7 +319,7 @@ export const getTaskHistory = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getTaskHistory:", error.message);
+    log.error("Error in getTaskHistory", { error: error.message });
     res.status(500).json({
       success: false,
       message: "Failed to fetch task history",

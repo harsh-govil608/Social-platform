@@ -2,6 +2,7 @@ import Referral from '../models/Referral.js';
 import User from '../models/User.js';
 import Subscription from '../models/Subscription.js';
 import UserActivity from '../models/UserActivity.js';
+import { log } from '../lib/logger.js';
 
 // Get or create user's referral code
 export const getReferralCode = async (req, res) => {
@@ -24,7 +25,7 @@ export const getReferralCode = async (req, res) => {
       rewards: referral.rewards
     });
   } catch (error) {
-    console.error('Error getting referral code:', error);
+    log.error('Error getting referral code', { error: error.message });
     res.status(500).json({ message: 'Failed to get referral code' });
   }
 };
@@ -36,13 +37,13 @@ export const applyReferralCode = async (userId, referralCode) => {
 
     const referral = await Referral.findOne({ referralCode: referralCode.toUpperCase() });
     if (!referral) {
-      console.log('Referral code not found:', referralCode);
+      log.debug('Referral code not found', { referralCode });
       return;
     }
 
     // Check if user is not referring themselves
     if (referral.referrer.toString() === userId.toString()) {
-      console.log('User cannot refer themselves');
+      log.debug('User cannot refer themselves', { userId });
       return;
     }
 
@@ -61,9 +62,9 @@ export const applyReferralCode = async (userId, referralCode) => {
       }
     }
 
-    console.log(`✅ Referral applied: ${referralCode} for user ${userId}`);
+    log.debug('Referral applied', { referralCode, userId });
   } catch (error) {
-    console.error('Error applying referral code:', error);
+    log.error('Error applying referral code', { error: error.message });
   }
 };
 
@@ -77,9 +78,9 @@ export const trackReferralConversion = async (userId, conversionType) => {
     referral.completeReferral(userId, conversionType);
     await referral.save();
 
-    console.log(`✅ Referral conversion tracked: ${conversionType} for user ${userId}`);
+    log.debug('Referral conversion tracked', { conversionType, userId });
   } catch (error) {
-    console.error('Error tracking referral conversion:', error);
+    log.error('Error tracking referral conversion', { error: error.message });
   }
 };
 
@@ -115,7 +116,7 @@ export const getReferralStats = async (req, res) => {
       rewards: referral.rewards
     });
   } catch (error) {
-    console.error('Error getting referral stats:', error);
+    log.error('Error getting referral stats', { error: error.message });
     res.status(500).json({ message: 'Failed to get referral stats' });
   }
 };
@@ -188,7 +189,7 @@ export const redeemRewards = async (req, res) => {
 
     res.status(400).json({ message: 'Invalid reward type' });
   } catch (error) {
-    console.error('Error redeeming rewards:', error);
+    log.error('Error redeeming rewards', { error: error.message });
     res.status(500).json({ message: 'Failed to redeem rewards' });
   }
 };
@@ -228,7 +229,7 @@ export const getReferralLeaderboard = async (req, res) => {
       } : null
     });
   } catch (error) {
-    console.error('Error getting referral leaderboard:', error);
+    log.error('Error getting referral leaderboard', { error: error.message });
     res.status(500).json({ message: 'Failed to get referral leaderboard' });
   }
 };

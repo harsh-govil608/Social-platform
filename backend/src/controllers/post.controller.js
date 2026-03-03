@@ -2,6 +2,7 @@ import Post from "../models/Post.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import { deleteUploadedFiles, generateVideoThumbnail } from "../middleware/upload.middleware.js";
+import { log } from "../lib/logger.js";
 
 // Create a new post with media uploads
 export async function createPost(req, res) {
@@ -12,20 +13,20 @@ export async function createPost(req, res) {
         if (!content || content.trim().length === 0) {
             // Clean up uploaded files if content is missing
             if (req.files) deleteUploadedFiles(req.files);
-            return res.status(400).json({ message: "Post content is required" });
+            return res.status(400).json({ success: false, message: "Post content is required" });
         }
 
         // Process uploaded files
         const images = [];
         const videos = [];
-        
+
         if (req.files) {
             if (req.files.images) {
                 req.files.images.forEach(file => {
                     images.push(`/uploads/images/${file.filename}`);
                 });
             }
-            
+
             if (req.files.videos) {
                 for (const file of req.files.videos) {
                     const videoUrl = `/uploads/videos/${file.filename}`;
@@ -54,8 +55,8 @@ export async function createPost(req, res) {
     } catch (error) {
         // Clean up uploaded files on error
         if (req.files) deleteUploadedFiles(req.files);
-        console.error("Error in createPost:", error);
-        res.status(500).json({ message: "Internal server error" });
+        log.error("Error in createPost", { error: error.message });
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -103,8 +104,8 @@ export async function getFeedPosts(req, res) {
             }
         });
     } catch (error) {
-        console.error("Error in getFeedPosts:", error);
-        res.status(500).json({ message: "Internal server error" });
+        log.error("Error in getFeedPosts", { error: error.message });
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -164,8 +165,8 @@ export async function getUserPosts(req, res) {
             }
         });
     } catch (error) {
-        console.error("Error in getUserPosts:", error);
-        res.status(500).json({ message: "Internal server error" });
+        log.error("Error in getUserPosts", { error: error.message });
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -214,8 +215,8 @@ export async function toggleLikePost(req, res) {
             isLiked: !isLiked
         });
     } catch (error) {
-        console.error("Error in toggleLikePost:", error);
-        res.status(500).json({ message: "Internal server error" });
+        log.error("Error in toggleLikePost", { error: error.message });
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -265,8 +266,8 @@ export async function commentOnPost(req, res) {
             post: updatedPost
         });
     } catch (error) {
-        console.error("Error in commentOnPost:", error);
-        res.status(500).json({ message: "Internal server error" });
+        log.error("Error in commentOnPost", { error: error.message });
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -290,8 +291,8 @@ export async function deletePost(req, res) {
 
         res.status(200).json({ success: true, message: "Post deleted successfully" });
     } catch (error) {
-        console.error("Error in deletePost:", error);
-        res.status(500).json({ message: "Internal server error" });
+        log.error("Error in deletePost", { error: error.message });
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -331,7 +332,7 @@ export async function sharePost(req, res) {
 
         res.status(200).json({ success: true, message: "Post shared successfully" });
     } catch (error) {
-        console.error("Error in sharePost:", error);
-        res.status(500).json({ message: "Internal server error" });
+        log.error("Error in sharePost", { error: error.message });
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }

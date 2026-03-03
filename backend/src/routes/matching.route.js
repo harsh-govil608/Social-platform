@@ -8,6 +8,7 @@ import {
     searchPartners,
     validateInteraction
 } from '../controllers/matching.controller.js';
+import { validateMatchRequest } from '../validators/learning.validator.js';
 
 const router = express.Router();
 
@@ -124,7 +125,7 @@ router.get('/preferences', getMatchingPreferences);
  *       200:
  *         description: Preferences updated
  */
-router.post('/preferences', updateMatchingPreferences);
+router.post('/preferences', validateMatchRequest, updateMatchingPreferences);
 
 /**
  * @swagger

@@ -184,7 +184,7 @@ const organizationSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Index for efficient queries
-organizationSchema.index({ slug: 1 });
+// slug index is already defined via unique:true on the field
 organizationSchema.index({ 'members.user': 1 });
 organizationSchema.index({ owner: 1 });
 

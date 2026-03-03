@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import dotenv from "dotenv";
+import { log } from "./logger.js";
 
 dotenv.config();
 
@@ -15,16 +16,16 @@ let provider = "none";
 if (process.env.OPENAI_API_KEY && !process.env.OPENAI_API_KEY.startsWith("sk-your")) {
   client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   provider = "openai";
-  console.log("✅ OpenAI AI client initialized");
+  log.info("OpenAI AI client initialized");
 } else if (process.env.HF_TOKEN) {
   client = new OpenAI({
     apiKey: process.env.HF_TOKEN,
     baseURL: "https://router.huggingface.co/v1",
   });
   provider = "huggingface";
-  console.log("✅ Hugging Face AI client initialized successfully");
+  log.info("Hugging Face AI client initialized successfully");
 } else {
-  console.warn("⚠️  No AI provider configured. Add OPENAI_API_KEY (recommended) or HF_TOKEN to .env");
+  log.warn("No AI provider configured. Add OPENAI_API_KEY (recommended) or HF_TOKEN to .env");
 }
 
 // Default models per provider
@@ -56,6 +57,7 @@ export async function generateAIResponse({
   }
 
   if (!client) {
+    log.warn("AI mock mode active — real response not generated", { userMessage: userMessage.slice(0, 50) });
     return `[MOCK AI RESPONSE] You asked: "${userMessage.slice(0, 100)}..."\n\nAdd OPENAI_API_KEY to .env for real AI responses.`;
   }
 
@@ -80,13 +82,13 @@ export async function generateAIResponse({
 
     return responseText.trim();
   } catch (error) {
-    console.error(`Error in generateAIResponse (${provider}):`, error.message);
+    log.error(`Error in generateAIResponse (${provider})`, { error: error.message });
 
     if (error.status === 429) {
       return "I'm currently experiencing high demand. Please try again in a moment.";
     }
     if (error.status === 401 || error.status === 403) {
-      console.error("AI authentication error — check your API key");
+      log.error("AI authentication error — check your API key");
       return "AI service authentication failed. Please contact support.";
     }
 
@@ -109,6 +111,13 @@ export async function generateShortAIResponse(params) {
  */
 export function isAIConfigured() {
   return provider !== "none";
+}
+
+/**
+ * Get the current AI provider name.
+ */
+export function getAIProvider() {
+  return provider;
 }
 
 export const MODELS = {

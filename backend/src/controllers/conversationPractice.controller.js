@@ -1,12 +1,13 @@
 import conversationAI from '../services/conversationAI.service.js';
 import LearningProgress from '../models/LearningProgress.js';
 import UserActivity from '../models/UserActivity.js';
+import { log } from '../lib/logger.js';
 
 // Helper function to update XP and Coins in both LearningProgress and UserActivity
 const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
   try {
     if (!userId) {
-      console.warn('updateUserXPAndCoins called with null userId, skipping');
+      log.warn('updateUserXPAndCoins called with null userId, skipping');
       return null;
     }
 
@@ -35,7 +36,7 @@ const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
 
     return userActivity;
   } catch (error) {
-    console.error('Error updating user XP and Coins:', error);
+    log.error('Error updating user XP and Coins:', error);
     // Don't throw - XP/coins update is non-critical, let the conversation end successfully
     return null;
   }
@@ -66,7 +67,7 @@ export async function startConversation(req, res) {
       ...conversationData
     });
   } catch (error) {
-    console.error('Error starting conversation:', error);
+    log.error('Error starting conversation:', error);
     res.status(500).json({ message: 'Failed to start conversation' });
   }
 }
@@ -93,7 +94,7 @@ export async function sendMessage(req, res) {
       ...response
     });
   } catch (error) {
-    console.error('Error processing message:', error);
+    log.error('Error processing message:', error);
     res.status(500).json({ message: 'Failed to process message' });
   }
 }
@@ -165,7 +166,7 @@ export async function endConversation(req, res) {
       challengeCompleted: todaysChallenge?.completed || false
     });
   } catch (error) {
-    console.error('Error ending conversation:', error);
+    log.error('Error ending conversation:', error);
     res.status(500).json({ message: 'Failed to end conversation' });
   }
 }
@@ -188,7 +189,7 @@ export async function getConversationStatus(req, res) {
       ...status
     });
   } catch (error) {
-    console.error('Error getting conversation status:', error);
+    log.error('Error getting conversation status:', error);
     res.status(500).json({ message: 'Failed to get conversation status' });
   }
 }
@@ -326,7 +327,7 @@ export async function getScenarios(req, res) {
     
     res.status(200).json(scenarios);
   } catch (error) {
-    console.error('Error getting scenarios:', error);
+    log.error('Error getting scenarios:', error);
     res.status(500).json({ message: 'Failed to get scenarios' });
   }
 }

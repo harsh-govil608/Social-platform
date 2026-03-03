@@ -1,6 +1,7 @@
 import { upsertStreamUser } from "../lib/stream.js";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import { log } from "../lib/logger.js";
 export async function signup(req,res){
     const { email, password, fullName}=req.body;
     try{
@@ -42,9 +43,9 @@ export async function signup(req,res){
                 name: newUser.fullName,
                 image: newUser.profilePic || "",
             });
-            console.log(`Stream user created for ${newUser.fullName}`);
+            log.debug("Stream user created", { userId: newUser._id, fullName: newUser.fullName });
         }catch(error){
-            console.log("Error creating Stream user:",error.message || error);
+            log.warn("Error creating Stream user", { error: error.message || error });
             // Continue with user creation even if Stream fails
         }
         const token=jwt.sign({userId: newUser._id}, process.env.JWT_SECRET_KEY,{
@@ -58,7 +59,7 @@ export async function signup(req,res){
         })
         res.status(201).json({success: true, user: newUser})
     } catch(error){
-        console.log("Error in signup",error);
+        log.error("Error in signup", { error: error.message });
         res.status(500).json({
             message: "Internal server error"
         });
@@ -91,7 +92,7 @@ export async function login(req,res){
         success: true, user
     });
 }catch(error){
-    console.log("Error in login controller",error.message);
+    log.error("Error in login controller", { error: error.message });
     res.status(500).json({ message: "Internal server error "});
 }
 }
@@ -145,14 +146,14 @@ export async function onboard(req,res){
             name: updatedUser.fullName,
             image: updatedUser.profilePic || "",
         })
-        console.log(`Stream user updated after onboarding for ${updatedUser.fullName}`);
+        log.debug("Stream user updated after onboarding", { userId: updatedUser._id, fullName: updatedUser.fullName });
         }catch(streamError) {
-            console.log("Error updating Stream user during onboarding:", streamError.message);
+            log.warn("Error updating Stream user during onboarding", { error: streamError.message });
         }
         res.status(200).json({ success: true, user: updatedUser});
 
     } catch(error){
-        console.error("Onboarding error:", error);
+        log.error("Onboarding error", { error: error.message });
         res.status(500).json({ message: "Internal server error"});
 
     }

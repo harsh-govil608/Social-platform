@@ -1,6 +1,7 @@
 import Achievement from '../models/Achievement.js';
 import User from '../models/User.js';
 import UserActivity from '../models/UserActivity.js';
+import { log } from '../lib/logger.js';
 
 // Initialize default achievements
 export const initializeAchievements = async () => {
@@ -279,7 +280,7 @@ export const initializeAchievements = async () => {
     }
   }
 
-  console.log('✅ Achievements initialized');
+  log.debug('Achievements initialized');
 };
 
 // Get all achievements
@@ -299,7 +300,7 @@ export const getAllAchievements = async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('Error getting achievements:', error);
+    log.error('Error getting achievements:', error);
     res.status(500).json({ message: 'Failed to get achievements' });
   }
 };
@@ -330,7 +331,7 @@ export const getUserAchievements = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error getting user achievements:', error);
+    log.error('Error getting user achievements:', error);
     res.status(500).json({ message: 'Failed to get user achievements' });
   }
 };
@@ -400,14 +401,14 @@ export const checkAchievements = async (userId) => {
         achievement.unlockedBy.push(userId);
         await achievement.save();
 
-        console.log(`🎉 Achievement unlocked: ${achievement.name} for user ${userId}`);
+        log.info('Achievement unlocked', { achievementName: achievement.name, userId });
       }
     }
 
     await userActivity.save();
     return userActivity;
   } catch (error) {
-    console.error('Error checking achievements:', error);
+    log.error('Error checking achievements:', error);
   }
 };
 
@@ -441,7 +442,7 @@ export const getLeaderboard = async (req, res) => {
       leaderboard: formattedLeaderboard
     });
   } catch (error) {
-    console.error('Error getting leaderboard:', error);
+    log.error('Error getting leaderboard:', error);
     res.status(500).json({ message: 'Failed to get leaderboard' });
   }
 };
@@ -470,7 +471,7 @@ export const incrementMetric = async (userId, metric, amount = 1) => {
 
     return userActivity;
   } catch (error) {
-    console.error('Error incrementing metric:', error);
+    log.error('Error incrementing metric:', error);
   }
 };
 
@@ -521,6 +522,6 @@ export const updateStreak = async (userId, streakType) => {
 
     return userActivity;
   } catch (error) {
-    console.error('Error updating streak:', error);
+    log.error('Error updating streak:', error);
   }
 };

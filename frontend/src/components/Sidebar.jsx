@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router';
-import { CalendarCheck, MessageCircle, Users, User, Zap, Flame, Newspaper, Trophy, Star, Map } from 'lucide-react';
+import { CalendarCheck, MessageCircle, Users, User, Zap, Flame, Newspaper, Trophy, Star, Map, CreditCard } from 'lucide-react';
 import useAuthUser from '../hooks/useAuthUser';
 
 const Sidebar = () => {
@@ -16,6 +16,7 @@ const Sidebar = () => {
         { path: '/leaderboard', icon: Trophy, label: 'Leaderboard', description: 'Top learners' },
         { path: '/achievements', icon: Star, label: 'Achievements', description: 'Badges & XP' },
         { path: '/profile', icon: User, label: 'Profile', description: 'Your profile' },
+        { path: '/pricing', icon: CreditCard, label: 'Upgrade', description: 'Go premium' },
     ];
 
     return <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen sticky top-0">

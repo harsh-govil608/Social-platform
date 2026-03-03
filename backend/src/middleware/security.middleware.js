@@ -1,5 +1,6 @@
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import { log } from '../lib/logger.js';
 
 // Check if in development mode
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -193,7 +194,7 @@ export const csrfProtection = (req, res, next) => {
     const isAllowed = !origin || allowedOrigins.some(allowed => origin?.startsWith(allowed));
 
     if (!isAllowed) {
-      console.warn('Blocked request with suspicious origin:', origin);
+      log.warn('Blocked request with suspicious origin:', origin);
       return res.status(403).json({ message: 'Invalid origin' });
     }
   }
@@ -220,7 +221,7 @@ export const logSuspiciousActivity = (req, res, next) => {
   const suspicious = suspiciousPatterns.some(pattern => pattern.test(checkString));
 
   if (suspicious) {
-    console.warn('⚠️ Suspicious activity detected:', {
+    log.warn('⚠️ Suspicious activity detected:', {
       ip: req.ip,
       path: req.path,
       method: req.method,

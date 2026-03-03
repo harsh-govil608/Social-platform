@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { log } from '../lib/logger.js';
 
 export const protectRoute = async (req, res, next) => {
     try{
@@ -18,7 +19,7 @@ export const protectRoute = async (req, res, next) => {
         req.user=user;
         next()
     }catch(error){
-        console.log("Error in protectRoute middleware", error);
+        log.warn("Error in protectRoute middleware", error);
         res.status(500).json({message: "Internal server error"});
 
     }
@@ -36,7 +37,7 @@ export const adminRoute = async (req, res, next) => {
 
         next();
     } catch (error) {
-        console.log("Error in adminRoute middleware", error);
+        log.warn("Error in adminRoute middleware", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };

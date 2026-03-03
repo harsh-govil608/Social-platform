@@ -18,6 +18,7 @@ import {
 } from "../controllers/user.controller.js";
 import { uploadSingle, handleUploadError, processUpload } from "../middleware/upload.middleware.js";
 import User from "../models/User.js";
+import { validateUpdateProfile, validateSearchQuery } from "../validators/user.validator.js";
 
 const router = express.Router();
 
@@ -25,11 +26,11 @@ router.use(protectRoute);
 
 // User discovery and search
 router.get("/", getRecommendedUsers);
-router.get("/search", searchUsers);
+router.get("/search", validateSearchQuery, searchUsers);
 
 // Profile management
 router.get("/profile/:userId", getUserProfile);
-router.patch("/profile", updateUserProfile);
+router.patch("/profile", validateUpdateProfile, updateUserProfile);
 router.post(
   "/profile-pic",
   uploadSingle("profilePic"),

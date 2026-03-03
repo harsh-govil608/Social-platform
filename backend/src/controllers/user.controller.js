@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
 import Notification from "../models/Notification.js";
+import { log } from "../lib/logger.js";
 
 export async function getRecommendedUsers(req, res) {
   try {
@@ -16,7 +17,7 @@ export async function getRecommendedUsers(req, res) {
     });
     res.status(200).json(recommendedUsers);
   } catch (error) {
-    console.error("Error in getRecommendedUsers controller", error.message);
+    log.error("Error in getRecommendedUsers controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -29,7 +30,7 @@ export async function getMyFriends(req, res) {
 
     res.status(200).json(user.friends);
   } catch (error) {
-    console.error("Error in getMyFriends controller", error.message);
+    log.error("Error in getMyFriends controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -82,7 +83,7 @@ export async function sendFriendRequest(req, res) {
 
     res.status(201).json(friendRequest);
   } catch (error) {
-    console.error("Error in sendFriendRequest controller", error.message);
+    log.error("Error in sendFriendRequest controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -124,7 +125,7 @@ export async function acceptFriendRequest(req, res) {
 
     res.status(200).json({ message: "Friend request accepted" });
   } catch (error) {
-    console.log("Error in acceptFriendRequest controller", error.message);
+    log.debug("Error in acceptFriendRequest controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -143,7 +144,7 @@ export async function getFriendRequests(req, res) {
 
     res.status(200).json({ incomingReqs, acceptedReqs });
   } catch (error) {
-    console.log("Error in getPendingFriendRequests controller", error.message);
+    log.debug("Error in getPendingFriendRequests controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -157,7 +158,7 @@ export async function getOutgoingFriendReqs(req, res) {
 
     res.status(200).json(outgoingRequests);
   } catch (error) {
-    console.log("Error in getOutgoingFriendReqs controller", error.message);
+    log.debug("Error in getOutgoingFriendReqs controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -193,7 +194,7 @@ export async function searchUsers(req, res) {
 
     res.status(200).json({ success: true, users });
   } catch (error) {
-    console.error("Error in searchUsers:", error);
+    log.error("Error in searchUsers:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -241,7 +242,7 @@ export async function getUserProfile(req, res) {
 
     res.status(200).json({ success: true, user });
   } catch (error) {
-    console.error("Error in getUserProfile:", error);
+    log.error("Error in getUserProfile:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -271,7 +272,7 @@ export async function updateUserProfile(req, res) {
 
     res.status(200).json({ success: true, user: updatedUser });
   } catch (error) {
-    console.error("Error in updateUserProfile:", error);
+    log.error("Error in updateUserProfile:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -317,7 +318,7 @@ export async function followUser(req, res) {
 
     res.status(200).json({ success: true, message: "User followed successfully" });
   } catch (error) {
-    console.error("Error in followUser:", error);
+    log.error("Error in followUser:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -339,7 +340,7 @@ export async function unfollowUser(req, res) {
 
     res.status(200).json({ success: true, message: "User unfollowed successfully" });
   } catch (error) {
-    console.error("Error in unfollowUser:", error);
+    log.error("Error in unfollowUser:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -372,7 +373,7 @@ export async function blockUser(req, res) {
 
     res.status(200).json({ success: true, message: "User blocked successfully" });
   } catch (error) {
-    console.error("Error in blockUser:", error);
+    log.error("Error in blockUser:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -389,7 +390,7 @@ export async function unblockUser(req, res) {
 
     res.status(200).json({ success: true, message: "User unblocked successfully" });
   } catch (error) {
-    console.error("Error in unblockUser:", error);
+    log.error("Error in unblockUser:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
@@ -407,7 +408,7 @@ export async function updateOnlineStatus(req, res) {
 
     res.status(200).json({ success: true, message: "Online status updated" });
   } catch (error) {
-    console.error("Error in updateOnlineStatus:", error);
+    log.error("Error in updateOnlineStatus:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }

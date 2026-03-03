@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
+import { log } from './logger.js';
 
 const isConfigured = () =>
   process.env.CLOUDINARY_CLOUD_NAME &&
@@ -12,9 +13,9 @@ if (isConfigured()) {
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
   });
-  console.log('✅ Cloudinary configured');
+  log.info('✅ Cloudinary configured');
 } else {
-  console.log('⚠️  Cloudinary not configured. Add CLOUDINARY_* vars to .env for cloud image storage.');
+  log.info('⚠️  Cloudinary not configured. Add CLOUDINARY_* vars to .env for cloud image storage.');
 }
 
 /**

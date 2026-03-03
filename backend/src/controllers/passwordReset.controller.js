@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import PasswordResetToken from "../models/PasswordResetToken.js";
 import { sendPasswordResetEmail } from "../lib/email.js";
+import { log } from '../lib/logger.js';
 
 // Request password reset - sends email with reset link
 export async function requestPasswordReset(req, res) {
@@ -65,7 +66,7 @@ export async function requestPasswordReset(req, res) {
         try {
             await sendPasswordResetEmail(user.email, user.fullName, resetUrl);
         } catch (emailError) {
-            console.error("Failed to send password reset email:", emailError);
+            log.error("Failed to send password reset email:", emailError);
             // Don't expose email sending failures to prevent information leakage
         }
 
@@ -75,7 +76,7 @@ export async function requestPasswordReset(req, res) {
         });
 
     } catch (error) {
-        console.error("Error in requestPasswordReset:", error);
+        log.error("Error in requestPasswordReset:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -103,7 +104,7 @@ export async function verifyResetToken(req, res) {
         res.status(200).json({ valid: true, message: "Token is valid" });
 
     } catch (error) {
-        console.error("Error in verifyResetToken:", error);
+        log.error("Error in verifyResetToken:", error);
         res.status(500).json({ valid: false, message: "Internal server error" });
     }
 }
@@ -159,7 +160,7 @@ export async function resetPassword(req, res) {
         });
 
     } catch (error) {
-        console.error("Error in resetPassword:", error);
+        log.error("Error in resetPassword:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }

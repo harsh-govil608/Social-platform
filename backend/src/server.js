@@ -32,8 +32,8 @@ import analyticsRoutes from "./routes/analytics.route.js";
 import gamificationRoutes from "./routes/gamification.route.js";
 import adminRoutes from "./routes/admin.route.js";
 import subscriptionRoutes from "./routes/subscription.route.js";
-// import referralRoutes from "./routes/referral.route.js";   // enable when ready
-// import organizationRoutes from "./routes/organization.route.js"; // enable when ready
+import referralRoutes from "./routes/referral.route.js";
+import organizationRoutes from "./routes/organization.route.js";
 // import docsRoutes from "./routes/docs.route.js";
 import healthRoutes from "./routes/health.route.js";
 import gdprRoutes from "./routes/gdpr.route.js";
@@ -59,10 +59,12 @@ import {
 } from "./middleware/security.middleware.js";
 
 // Database & utilities
+import mongoose from "mongoose";
 import { connectDB } from "./lib/db.js";
 import { initializeAchievements } from "./controllers/gamification.controller.js";
 import { initSentry, sentryRequestHandler, sentryTracingHandler, sentryErrorHandler } from "./lib/sentry.js";
 import { performanceMonitoring, requestIdMiddleware, memoryMonitoring } from "./middleware/performance.middleware.js";
+import { log } from "./lib/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,7 +77,7 @@ initSentry(app);
 const requiredEnvVars = ['PORT', 'MONGO_URI', 'JWT_SECRET_KEY', 'STREAM_API_KEY', 'STREAM_API_SECRET'];
 for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
-        console.error(`Missing required environment variable: ${envVar}`);
+        log.error(`Missing required environment variable: ${envVar}`);
         process.exit(1);
     }
 }
@@ -182,9 +184,9 @@ app.use("/api/matching", apiLimiter, matchingRoutes);
 app.use("/api/daily-task", dailyTaskLimiter, dailyTaskRoutes);
 app.use("/api/analytics", apiLimiter, analyticsRoutes);
 
-// B2B routes (disabled)
-// app.use("/api/referral", apiLimiter, referralRoutes);
-// app.use("/api/organization", apiLimiter, organizationRoutes);
+// B2B routes
+app.use("/api/referral", apiLimiter, referralRoutes);
+app.use("/api/organization", apiLimiter, organizationRoutes);
 
 app.use("/api/gamification", apiLimiter, gamificationRoutes);
 app.use("/api/subscription", subscriptionRoutes); // webhook needs raw body, no apiLimiter wrapper
@@ -221,14 +223,14 @@ app.get('*', (req, res) => {
 
 // Socket.io connection handling for real-time conversation
 io.on('connection', (socket) => {
-    console.log('New client connected:', socket.id);
-    
+    log.debug('New client connected', { socketId: socket.id });
+
     // Join user to their personal room
     socket.on('join-conversation', (userId) => {
         socket.join(`conversation-${userId}`);
-        console.log(`User ${userId} joined conversation room`);
+        log.debug('User joined conversation room', { userId });
     });
-    
+
     // Handle real-time message streaming
     socket.on('conversation-message', async (data) => {
         const { userId, message } = data;
@@ -237,16 +239,18 @@ io.on('connection', (socket) => {
             chunk: 'Processing...'
         });
     });
-    
+
     socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
+        log.debug('Client disconnected', { socketId: socket.id });
     });
 });
 
 server.listen(PORT, async () => {
-    console.log(`\n🚀 Server with Socket.io is running on port ${PORT}`);
-    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+    log.info(`Server with Socket.io is running on port ${PORT}`, {
+        port: PORT,
+        environment: process.env.NODE_ENV || 'development',
+        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+    });
 
     await connectDB();
 
@@ -256,25 +260,30 @@ server.listen(PORT, async () => {
     // Seed default achievements (safe to run on every startup - uses upsert)
     try {
         await initializeAchievements();
-        console.log('✅ Gamification achievements seeded');
+        log.info('Gamification achievements seeded');
     } catch (error) {
-        console.error('❌ Failed to seed achievements:', error.message);
+        log.error('Failed to seed achievements', { error: error.message });
     }
 
-    console.log('📦 API endpoints:');
-    console.log('   - /api/auth - Authentication');
-    console.log('   - /api/users - User management');
-    console.log('   - /api/chat - Messaging');
-    console.log('   - /api/posts - Social feed');
-    console.log('   - /api/notifications - Notifications');
-    console.log('   - /api/daily-task - Daily task flow');
-    console.log('   - /api/learning - Learning progress');
-    console.log('   - /api/ai-tutor - AI tutoring');
-    console.log('   - /api/conversation-practice - Conversation practice');
-    console.log('   - /api/vocabulary - Spaced repetition');
-    console.log('   - /api/matching - Partner matching');
-    console.log('   - /api/activity - User activity');
-    console.log('   - /api/analytics - Analytics');
-    console.log('   - /api/admin - Admin dashboard');
-    console.log('   - /api/health - Health check\n');
+    log.info('API ready', {
+        endpoints: ['/api/auth', '/api/users', '/api/chat', '/api/posts', '/api/notifications',
+            '/api/daily-task', '/api/learning', '/api/ai-tutor', '/api/conversation-practice',
+            '/api/vocabulary', '/api/matching', '/api/activity', '/api/analytics', '/api/admin', '/api/health'],
+    });
 });
+
+const shutdown = async (signal) => {
+    log.info(`${signal} received — starting graceful shutdown`);
+    server.close(async () => {
+        log.info('HTTP server closed');
+        await mongoose.connection.close(false);
+        log.info('MongoDB connection closed');
+        process.exit(0);
+    });
+    setTimeout(() => {
+        log.error('Forceful shutdown after timeout');
+        process.exit(1);
+    }, 10_000);
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

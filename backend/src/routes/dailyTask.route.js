@@ -8,6 +8,7 @@ import {
   updateStreakAndComplete,
   getTaskHistory,
 } from "../controllers/dailyTask.controller.js";
+import { validatePartnerInteraction, validateCompleteAIPractice } from "../validators/learning.validator.js";
 
 const router = express.Router();
 
@@ -21,10 +22,10 @@ router.get("/today", getTodayTask);
 router.post("/start", startTask);
 
 // Complete AI practice step
-router.post("/complete-ai-practice", completeAIPractice);
+router.post("/complete-ai-practice", validateCompleteAIPractice, completeAIPractice);
 
 // Offer/handle partner interaction
-router.post("/partner-interaction", offerPartnerInteraction);
+router.post("/partner-interaction", validatePartnerInteraction, offerPartnerInteraction);
 
 // Update streak and complete the task
 router.post("/complete", updateStreakAndComplete);

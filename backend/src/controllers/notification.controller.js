@@ -1,4 +1,5 @@
 import Notification from "../models/Notification.js";
+import { log } from '../lib/logger.js';
 
 // Get user's notifications
 export async function getNotifications(req, res) {
@@ -38,7 +39,7 @@ export async function getNotifications(req, res) {
             }
         });
     } catch (error) {
-        console.error("Error in getNotifications:", error);
+        log.error("Error in getNotifications:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -61,7 +62,7 @@ export async function markNotificationAsRead(req, res) {
 
         res.status(200).json({ success: true, notification });
     } catch (error) {
-        console.error("Error in markNotificationAsRead:", error);
+        log.error("Error in markNotificationAsRead:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -78,7 +79,7 @@ export async function markAllNotificationsAsRead(req, res) {
 
         res.status(200).json({ success: true, message: "All notifications marked as read" });
     } catch (error) {
-        console.error("Error in markAllNotificationsAsRead:", error);
+        log.error("Error in markAllNotificationsAsRead:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -100,7 +101,7 @@ export async function deleteNotification(req, res) {
 
         res.status(200).json({ success: true, message: "Notification deleted" });
     } catch (error) {
-        console.error("Error in deleteNotification:", error);
+        log.error("Error in deleteNotification:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
@@ -117,7 +118,7 @@ export async function getUnreadCount(req, res) {
 
         res.status(200).json({ success: true, unreadCount });
     } catch (error) {
-        console.error("Error in getUnreadCount:", error);
+        log.error("Error in getUnreadCount:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }

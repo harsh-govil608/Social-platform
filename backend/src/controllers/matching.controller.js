@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import { findBestMatches, getMatchQuality } from '../lib/matchingAlgorithm.js';
+import { log } from '../lib/logger.js';
 
 // Minimum partner interaction duration in seconds (5 minutes)
 const MIN_INTERACTION_DURATION = 5 * 60;
@@ -66,7 +67,7 @@ export async function getPartnerMatches(req, res) {
             total: enrichedMatches.length
         });
     } catch (error) {
-        console.error('Error in getPartnerMatches:', error);
+        log.error('Error in getPartnerMatches:', error);
         res.status(500).json({ message: 'Failed to find partner matches' });
     }
 }
@@ -115,7 +116,7 @@ export async function updateMatchingPreferences(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in updateMatchingPreferences:', error);
+        log.error('Error in updateMatchingPreferences:', error);
         res.status(500).json({ message: 'Failed to update preferences' });
     }
 }
@@ -149,7 +150,7 @@ export async function getMatchingPreferences(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getMatchingPreferences:', error);
+        log.error('Error in getMatchingPreferences:', error);
         res.status(500).json({ message: 'Failed to get preferences' });
     }
 }
@@ -204,7 +205,7 @@ export async function getPartnerProfile(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error in getPartnerProfile:', error);
+        log.error('Error in getPartnerProfile:', error);
         res.status(500).json({ message: 'Failed to get partner profile' });
     }
 }
@@ -253,7 +254,7 @@ export async function searchPartners(req, res) {
             count: partners.length
         });
     } catch (error) {
-        console.error('Error in searchPartners:', error);
+        log.error('Error in searchPartners:', error);
         res.status(500).json({ message: 'Failed to search partners' });
     }
 }
@@ -284,7 +285,7 @@ export async function validateInteraction(req, res) {
                 : `Minimum ${MIN_INTERACTION_DURATION / 60} minutes required. You spent ${Math.floor(durationSeconds / 60)} minutes.`,
         });
     } catch (error) {
-        console.error('Error in validateInteraction:', error);
+        log.error('Error in validateInteraction:', error);
         res.status(500).json({ message: 'Failed to validate interaction' });
     }
 }

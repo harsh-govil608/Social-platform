@@ -7,6 +7,7 @@ import {
   getConversationStatus,
   getScenarios
 } from '../controllers/conversationPractice.controller.js';
+import { validateConversationStart } from '../validators/learning.validator.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.use(protectRoute);
 // Conversation practice routes
 router.get('/scenarios', getScenarios);
 router.get('/status', getConversationStatus);
-router.post('/start', startConversation);
+router.post('/start', validateConversationStart, startConversation);
 router.post('/message', sendMessage);
 router.post('/end', endConversation);
 

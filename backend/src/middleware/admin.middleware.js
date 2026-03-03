@@ -1,3 +1,4 @@
+import { log } from '../lib/logger.js';
 export const isAdmin = async (req, res, next) => {
   try {
     // Check if user exists from protectRoute middleware
@@ -14,7 +15,7 @@ export const isAdmin = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.log('Error in isAdmin middleware:', error);
+    log.info('Error in isAdmin middleware:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

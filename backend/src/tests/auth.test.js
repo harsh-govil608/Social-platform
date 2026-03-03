@@ -7,6 +7,7 @@ jest.unstable_mockModule('../lib/db.js', () => ({
 }));
 
 jest.unstable_mockModule('../lib/stream.js', () => ({
+  upsertStreamUser: jest.fn().mockResolvedValue(true),
   createStreamUser: jest.fn().mockResolvedValue(true),
   generateStreamToken: jest.fn().mockReturnValue('mock-token'),
 }));
@@ -33,27 +34,26 @@ describe('Auth Routes', () => {
 
   describe('POST /api/auth/signup', () => {
     it('should create a new user with valid data', async () => {
-      const mockSave = jest.fn().mockResolvedValue({
+      const mockUser = {
         _id: 'user123',
         fullName: 'Test User',
         email: 'test@example.com',
-        password: 'hashedpassword',
         isOnboarded: false,
-      });
+      };
 
       User.findOne = jest.fn().mockResolvedValue(null);
-      User.prototype.save = mockSave;
+      User.create = jest.fn().mockResolvedValue(mockUser);
 
       const response = await request(app)
         .post('/api/auth/signup')
         .send({
           fullName: 'Test User',
           email: 'test@example.com',
-          password: 'password123',
+          password: 'Password123',
         });
 
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('_id');
+      expect(response.body).toHaveProperty('success', true);
     }, 10000);
 
     it('should return error if email already exists', async () => {
@@ -64,7 +64,7 @@ describe('Auth Routes', () => {
         .send({
           fullName: 'Test User',
           email: 'test@example.com',
-          password: 'password123',
+          password: 'Password123',
         });
 
       expect(response.status).toBe(400);
