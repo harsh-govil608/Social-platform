@@ -184,11 +184,12 @@ export const csrfProtection = (req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     const allowedOrigins = [
       process.env.FRONTEND_URL,
+      process.env.CORS_ORIGIN,
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:5175',
       'http://localhost:5176',
-      'http://localhost:5001' // Allow same-origin requests
+      'http://localhost:5001'
     ].filter(Boolean);
 
     const isAllowed = !origin || allowedOrigins.some(allowed => origin?.startsWith(allowed));
