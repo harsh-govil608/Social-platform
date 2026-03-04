@@ -50,7 +50,7 @@ export async function generateAIResponse({
   userMessage,
   model,
   temperature = 0.7,
-  maxTokens = 400,
+  maxTokens = 800,
 }) {
   if (!systemPrompt || !userMessage) {
     throw new Error("systemPrompt and userMessage are required");
