@@ -120,6 +120,7 @@ app.get("/api/test", (req, res) => {
     res.json({ message: "Test endpoint works!" });
 });
 
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(cookieParser());
 
