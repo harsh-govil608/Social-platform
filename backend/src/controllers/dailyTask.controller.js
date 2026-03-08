@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import Vocabulary from "../models/vocabulary.model.js";
 import UserAnalytics from "../models/UserAnalytics.js";
 import { log } from "../lib/logger.js";
+import { VOCABULARY_SEEDS } from "../data/seedChallengesAndVocab.js";
 
 // Get today's task for the authenticated user
 export const getTodayTask = async (req, res) => {
@@ -337,12 +338,27 @@ async function determineTaskType(userId) {
 async function populateTaskContent(task) {
   if (task.taskType === "vocabulary" && task.content?.words?.length === 0) {
     const user = await User.findById(task.user);
-    const language = user?.learningLanguage || "spanish";
+    const language = (user?.learningLanguage || "spanish").toLowerCase();
 
-    const vocabularyWords = await Vocabulary.find({
+    let vocabularyWords = await Vocabulary.find({
       language: { $regex: new RegExp(`^${language}$`, "i") },
       isActive: true,
     }).limit(20);
+
+    // Auto-seed vocabulary if DB is empty for this language
+    if (vocabularyWords.length === 0) {
+      log.debug("No vocabulary found for language, auto-seeding", { language });
+      const seeds = VOCABULARY_SEEDS[language] || VOCABULARY_SEEDS["spanish"] || [];
+      for (const word of seeds) {
+        try {
+          await Vocabulary.create({ ...word, language });
+        } catch { /* skip duplicates */ }
+      }
+      vocabularyWords = await Vocabulary.find({
+        language: { $regex: new RegExp(`^${language}$`, "i") },
+        isActive: true,
+      }).limit(20);
+    }
 
     if (vocabularyWords.length > 0) {
       task.content.words = vocabularyWords.map((w) => ({
