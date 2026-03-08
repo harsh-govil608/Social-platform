@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
 import Notification from "../models/Notification.js";
 import { log } from "../lib/logger.js";
+import { emitNotification } from "../lib/socketService.js";
 
 export async function getRecommendedUsers(req, res) {
   try {
@@ -72,7 +73,7 @@ export async function sendFriendRequest(req, res) {
     });
 
     // Create notification for the recipient
-    await Notification.create({
+    const notification = await Notification.create({
       recipient: recipientId,
       sender: myId,
       type: 'friend_request',
@@ -80,6 +81,7 @@ export async function sendFriendRequest(req, res) {
       entityModel: 'FriendRequest',
       message: `${req.user.fullName} sent you a friend request`
     });
+    emitNotification(recipientId, notification);
 
     res.status(201).json(friendRequest);
   } catch (error) {
@@ -114,7 +116,7 @@ export async function acceptFriendRequest(req, res) {
     });
 
     // Create notification for the sender
-    await Notification.create({
+    const acceptNotification = await Notification.create({
       recipient: friendRequest.sender,
       sender: friendRequest.recipient,
       type: 'friend_accept',
@@ -122,6 +124,7 @@ export async function acceptFriendRequest(req, res) {
       entityModel: 'FriendRequest',
       message: `${req.user.fullName} accepted your friend request`
     });
+    emitNotification(friendRequest.sender, acceptNotification);
 
     res.status(200).json({ message: "Friend request accepted" });
   } catch (error) {
@@ -307,7 +310,7 @@ export async function followUser(req, res) {
     });
 
     // Create notification
-    await Notification.create({
+    const followNotification = await Notification.create({
       recipient: userId,
       sender: followerId,
       type: 'follow',
@@ -315,6 +318,7 @@ export async function followUser(req, res) {
       entityModel: 'User',
       message: `${req.user.fullName} started following you`
     });
+    emitNotification(userId, followNotification);
 
     res.status(200).json({ success: true, message: "User followed successfully" });
   } catch (error) {

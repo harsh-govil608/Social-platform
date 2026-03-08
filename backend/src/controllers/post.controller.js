@@ -3,11 +3,14 @@ import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import { deleteUploadedFiles, generateVideoThumbnail } from "../middleware/upload.middleware.js";
 import { log } from "../lib/logger.js";
+import { emitNotification } from "../lib/socketService.js";
 
 // Create a new post with media uploads
 export async function createPost(req, res) {
     try {
-        const { content, visibility } = req.body;
+        const { content, visibility, mood } = req.body;
+        let tags = [];
+        try { tags = req.body.tags ? JSON.parse(req.body.tags) : []; } catch { tags = []; }
         const userId = req.user._id;
 
         if (!content || content.trim().length === 0) {
@@ -43,9 +46,11 @@ export async function createPost(req, res) {
         const newPost = await Post.create({
             author: userId,
             content: content.trim(),
-            images: images,
-            videos: videos,
-            visibility: visibility || 'public'
+            images,
+            videos,
+            visibility: visibility || 'public',
+            tags: Array.isArray(tags) ? tags.slice(0, 5) : [],
+            mood: mood || '',
         });
 
         const populatedPost = await Post.findById(newPost._id)
@@ -85,8 +90,9 @@ export async function getFeedPosts(req, res) {
             .skip(skip)
             .limit(limit)
             .populate('author', 'fullName profilePic isVerified')
-            .populate('likes', 'fullName profilePic')
-            .populate('comments.user', 'fullName profilePic');
+            .populate('likes', '_id')                          // only need IDs to check if liked
+            .populate('comments.user', 'fullName profilePic')
+            .lean();
 
         const totalPosts = await Post.countDocuments({
             author: { $in: feedUserIds },
@@ -192,7 +198,7 @@ export async function toggleLikePost(req, res) {
 
             // Create notification for post owner (if not self-like)
             if (post.author.toString() !== userId.toString()) {
-                await Notification.create({
+                const likeNotif = await Notification.create({
                     recipient: post.author,
                     sender: userId,
                     type: 'post_like',
@@ -200,6 +206,7 @@ export async function toggleLikePost(req, res) {
                     entityModel: 'Post',
                     message: `${req.user.fullName} liked your post`
                 });
+                emitNotification(post.author, likeNotif);
             }
         }
 
@@ -247,7 +254,7 @@ export async function commentOnPost(req, res) {
 
         // Create notification for post owner (if not self-comment)
         if (post.author.toString() !== userId.toString()) {
-            await Notification.create({
+            const commentNotif = await Notification.create({
                 recipient: post.author,
                 sender: userId,
                 type: 'post_comment',
@@ -255,6 +262,7 @@ export async function commentOnPost(req, res) {
                 entityModel: 'Post',
                 message: `${req.user.fullName} commented on your post`
             });
+            emitNotification(post.author, commentNotif);
         }
 
         const updatedPost = await Post.findById(postId)
@@ -296,6 +304,34 @@ export async function deletePost(req, res) {
     }
 }
 
+// Edit a post
+export async function editPost(req, res) {
+    try {
+        const { postId } = req.params;
+        const userId = req.user._id;
+        const { content, visibility } = req.body;
+
+        const post = await Post.findById(postId);
+        if (!post || post.isDeleted) return res.status(404).json({ message: "Post not found" });
+        if (post.author.toString() !== userId.toString()) return res.status(403).json({ message: "You can only edit your own posts" });
+        if (!content?.trim()) return res.status(400).json({ message: "Content cannot be empty" });
+
+        post.content = content.trim();
+        if (visibility) post.visibility = visibility;
+        await post.save();
+
+        const updated = await Post.findById(postId)
+            .populate('author', 'fullName profilePic isVerified')
+            .populate('likes', '_id')
+            .populate('comments.user', 'fullName profilePic isVerified');
+
+        res.status(200).json({ success: true, post: updated });
+    } catch (error) {
+        log.error("Error in editPost", { error: error.message });
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
 // Share a post
 export async function sharePost(req, res) {
     try {
@@ -320,7 +356,7 @@ export async function sharePost(req, res) {
 
         // Create notification for post owner (if not self-share)
         if (post.author.toString() !== userId.toString()) {
-            await Notification.create({
+            const shareNotif = await Notification.create({
                 recipient: post.author,
                 sender: userId,
                 type: 'post_share',
@@ -328,6 +364,7 @@ export async function sharePost(req, res) {
                 entityModel: 'Post',
                 message: `${req.user.fullName} shared your post`
             });
+            emitNotification(post.author, shareNotif);
         }
 
         res.status(200).json({ success: true, message: "Post shared successfully" });

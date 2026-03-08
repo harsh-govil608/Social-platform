@@ -45,11 +45,9 @@ const DailyChallenges = ({ userLevel = 1, onChallengeComplete }) => {
   const { data: challengesFromDB, isLoading: loadingChallenges, error: challengesError } = useQuery({
     queryKey: ["dailyChallenges"],
     queryFn: getDailyChallenges,
-    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
-    cacheTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    onError: (error) => {
-      console.error("Query error:", error);
-    }
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1
   });
   
   // Log the data

@@ -435,32 +435,52 @@ export const getWeeklyStats = async (req, res) => {
   try {
     const userId = req.user._id;
     const progress = await LearningProgress.findOne({ user: userId });
-    
+
     if (!progress) {
-      return res.status(404).json({ message: "Learning progress not found" });
+      return res.status(200).json({
+        days: [],
+        totalXP: 0,
+        totalMinutes: 0,
+        totalWords: 0,
+        weeklyGoal: 500,
+        goalProgress: 0
+      });
     }
-    
-    // Get stats for the current week
+
+    // Compute weekly challenge completions from the flat dailyChallenges array
     const today = new Date();
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+    weekStart.setDate(today.getDate() - today.getDay());
     weekStart.setHours(0, 0, 0, 0);
-    
-    const weekStats = progress.weeklyStats.days.filter(day => 
-      new Date(day.date) >= weekStart
-    );
-    
-    const totalXP = weekStats.reduce((sum, day) => sum + day.xpEarned, 0);
-    const totalMinutes = weekStats.reduce((sum, day) => sum + day.minutesLearned, 0);
-    const totalWords = weekStats.reduce((sum, day) => sum + day.wordsLearned, 0);
-    
+
+    const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days = [];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      const dStart = new Date(d); dStart.setHours(0, 0, 0, 0);
+      const dEnd   = new Date(d); dEnd.setHours(23, 59, 59, 999);
+
+      const dayCompletions = (progress.dailyChallenges || []).filter(c => {
+        const completed = new Date(c.completedAt || c.date);
+        return completed >= dStart && completed <= dEnd;
+      });
+
+      const xpEarned = dayCompletions.reduce((sum, c) => sum + (c.xpEarned || 0), 0);
+      days.push({ day: DAYS[d.getDay()], date: d.toISOString().split('T')[0], xpEarned, minutesLearned: 0, wordsLearned: 0 });
+    }
+
+    const totalXP = days.reduce((sum, d) => sum + d.xpEarned, 0);
+    const weeklyGoal = 500;
+
     res.status(200).json({
-      days: weekStats,
+      days,
       totalXP,
-      totalMinutes,
-      totalWords,
-      weeklyGoal: progress.weeklyStats.weeklyGoal,
-      goalProgress: (totalXP / progress.weeklyStats.weeklyGoal) * 100
+      totalMinutes: 0,
+      totalWords: progress.wordsLearned || 0,
+      weeklyGoal,
+      goalProgress: Math.min(100, (totalXP / weeklyGoal) * 100)
     });
   } catch (error) {
     log.error("Error fetching weekly stats:", error);

@@ -57,7 +57,7 @@ export const sendEmail = async (options) => {
     }
 
     const mailOptions = {
-      from: `${process.env.EMAIL_FROM_NAME || 'Streamify'} <${process.env.EMAIL_FROM}>`,
+      from: `${process.env.EMAIL_FROM_NAME || 'LangPal'} <${process.env.EMAIL_FROM}>`,
       to,
       subject,
       text,

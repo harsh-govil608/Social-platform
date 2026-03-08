@@ -170,8 +170,12 @@ const EnhancedCreatePost = () => {
 
   const handleSubmit = () => {
     if (!content.trim() && images.length === 0 && videos.length === 0) {
-      toast.error('Please add some content, images, or videos to your post');
+      toast.error('Write something or add a photo/video first');
       return;
+    }
+    if (!content.trim() && (images.length > 0 || videos.length > 0)) {
+      // allow media-only posts — add placeholder content
+      // actually require at least a space
     }
 
     const formData = new FormData();

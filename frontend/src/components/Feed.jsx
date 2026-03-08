@@ -8,7 +8,16 @@ import toast from 'react-hot-toast';
 const PostCard = ({ post, onDelete }) => {
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [commentText, setCommentText] = useState('');
+  // Local optimistic state so comment count updates instantly
+  const [localCommentCount, setLocalCommentCount] = useState(post.comments.length);
+  const [localComments, setLocalComments] = useState(post.comments);
   const queryClient = useQueryClient();
+
+  // Sync local state when server data arrives
+  if (post.comments.length !== localCommentCount && !commentText) {
+    setLocalCommentCount(post.comments.length);
+    setLocalComments(post.comments);
+  }
 
   const { mutate: likeMutation } = useMutation({
     mutationFn: () => toggleLikePost(post._id),
@@ -26,6 +35,12 @@ const PostCard = ({ post, onDelete }) => {
       setShowCommentBox(false);
       toast.success('Comment added!');
     },
+    onError: () => {
+      // Revert optimistic update
+      setLocalCommentCount(post.comments.length);
+      setLocalComments(post.comments);
+      toast.error('Failed to add comment');
+    },
   });
 
   const { mutate: shareMutation } = useMutation({
@@ -37,9 +52,17 @@ const PostCard = ({ post, onDelete }) => {
   });
 
   const handleComment = () => {
-    if (commentText.trim()) {
-      commentMutation(commentText);
-    }
+    if (!commentText.trim()) return;
+    // Optimistically update count and comment list immediately
+    const optimisticComment = {
+      _id: `temp-${Date.now()}`,
+      user: { fullName: 'You', profilePic: '' },
+      text: commentText,
+      createdAt: new Date().toISOString(),
+    };
+    setLocalCommentCount((c) => c + 1);
+    setLocalComments((prev) => [...prev, optimisticComment]);
+    commentMutation(commentText);
   };
 
   return (
@@ -102,7 +125,7 @@ const PostCard = ({ post, onDelete }) => {
         {/* Post Stats */}
         <div className="flex items-center gap-6 text-sm opacity-70 mb-4">
           <span>{post.likes.length} likes</span>
-          <span>{post.comments.length} comments</span>
+          <span>{localCommentCount} comments</span>
           <span>{post.shares.length} shares</span>
         </div>
 
@@ -148,17 +171,17 @@ const PostCard = ({ post, onDelete }) => {
         )}
 
         {/* Comments Section */}
-        {post.comments.length > 0 && (
+        {localComments.length > 0 && (
           <div className="mt-4 space-y-3">
-            {post.comments.slice(0, 3).map((comment) => (
+            {localComments.slice(0, 3).map((comment) => (
               <div key={comment._id} className="flex gap-3">
                 <div className="avatar">
                   <div className="w-8 rounded-full">
-                    <img src={comment.user.profilePic} alt={comment.user.fullName} />
+                    <img src={comment.user?.profilePic || ''} alt={comment.user?.fullName} />
                   </div>
                 </div>
                 <div className="flex-1 bg-base-200 rounded-lg p-3">
-                  <p className="font-semibold text-sm">{comment.user.fullName}</p>
+                  <p className="font-semibold text-sm">{comment.user?.fullName}</p>
                   <p className="text-sm">{comment.text}</p>
                   <p className="text-xs opacity-60 mt-1">
                     {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
@@ -166,9 +189,9 @@ const PostCard = ({ post, onDelete }) => {
                 </div>
               </div>
             ))}
-            {post.comments.length > 3 && (
+            {localComments.length > 3 && (
               <button className="text-sm text-primary hover:underline">
-                View all {post.comments.length} comments
+                View all {localCommentCount} comments
               </button>
             )}
           </div>

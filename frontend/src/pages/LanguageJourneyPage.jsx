@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { 
@@ -45,6 +45,7 @@ import DynamicConversation from "../components/DynamicConversation";
 const LanguageJourneyPage = () => {
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedLevel, setSelectedLevel] = useState("beginner");
   const [playingVideo, setPlayingVideo] = useState(null);
@@ -215,12 +216,25 @@ const LanguageJourneyPage = () => {
   };
 
   const handleChallengeStart = (challenge) => {
-    if (!challenge.completed) {
-      // Simulate challenge completion for demo
-      setTimeout(() => {
-        completeChallengeMutation(challenge.challengeId);
-      }, 2000);
-      toast.loading("Starting challenge...", { duration: 2000 });
+    if (challenge.completed) return;
+
+    // Navigate to the actual activity for each challenge type
+    if (challenge.challengeId === 'chat-5min') {
+      // Mark started and go to AI conversation practice
+      completeChallengeMutation(challenge.challengeId);
+      navigate('/conversation-practice');
+    } else if (challenge.challengeId === 'learn-10-words') {
+      // Mark started and go to daily vocabulary task
+      completeChallengeMutation(challenge.challengeId);
+      navigate('/daily-task');
+    } else if (challenge.challengeId === 'watch-lesson') {
+      // Switch to the video lessons tab on this page
+      completeChallengeMutation(challenge.challengeId);
+      setActiveTab('lessons');
+      toast.success('Watch a lesson below to complete this challenge!');
+    } else {
+      // Generic: mark complete and refresh
+      completeChallengeMutation(challenge.challengeId);
     }
   };
 

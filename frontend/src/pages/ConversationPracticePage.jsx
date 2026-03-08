@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { axiosInstance } from '../lib/axios';
-import io from 'socket.io-client';
-import { Mic, MicOff, Send, Volume2, VolumeX, X, ChevronRight, MessageSquare, Award, Clock, TrendingUp } from 'lucide-react';
+import { io } from 'socket.io-client';
+import useAuthUser from '../hooks/useAuthUser';
+import { Mic, MicOff, Send, Volume2, VolumeX, X, ChevronRight, MessageSquare, Award, Clock, TrendingUp, PlayCircle } from 'lucide-react';
+import AudioRecorder from '../components/AudioRecorder';
 import toast from 'react-hot-toast';
 
 const ConversationPracticePage = () => {
+  const { authUser } = useAuthUser();
   // Check if coming from 5-minute conversation with a pre-selected scenario
   const preSelectedScenario = localStorage.getItem('selectedScenario');
   const preSelectedTitle = localStorage.getItem('scenarioTitle');
@@ -20,6 +23,7 @@ const ConversationPracticePage = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [socket, setSocket] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [lastRecording, setLastRecording] = useState(null);
   
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -188,16 +192,14 @@ const ConversationPracticePage = () => {
       });
       
       newSocket.on('connect', () => {
-        console.log('Connected to Socket.io');
-        // Join conversation room
-        const userId = localStorage.getItem('userId'); // Or get from auth context
-        newSocket.emit('join-conversation', userId);
+        if (authUser?._id) {
+          newSocket.emit('join-conversation', authUser._id);
+        }
       });
       
       // Listen for AI response chunks (for streaming)
       newSocket.on('ai-response-chunk', (data) => {
         // Handle streaming response if implemented
-        console.log('Received chunk:', data.chunk);
       });
       
       setSocket(newSocket);
@@ -504,31 +506,47 @@ const ConversationPracticePage = () => {
       )}
       
       {/* Input */}
-      <div className="bg-base-200 rounded-b-lg p-4">
+      <div className="bg-base-200 rounded-b-lg p-4 space-y-2">
+        {/* Audio recorder row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs opacity-50">Record your response:</span>
+            <AudioRecorder
+              disabled={!conversationActive}
+              onRecordingComplete={(blob) => setLastRecording(blob)}
+            />
+          </div>
+          {lastRecording && (
+            <span className="text-xs text-success">✓ Recording saved</span>
+          )}
+        </div>
+
+        {/* Text input row */}
         <div className="flex gap-2">
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Type your message..."
+            placeholder="Type your message or use voice input..."
             className="input input-bordered flex-1"
-            disabled={!conversationActive || sendMessageMutation.isLoading}
+            disabled={!conversationActive || sendMessageMutation.isPending}
           />
-          
+
           <button
             onClick={handleVoiceInput}
-            className={`btn ${isListening ? 'btn-error' : 'btn-ghost'}`}
+            className={`btn ${isListening ? 'btn-error animate-pulse' : 'btn-ghost'}`}
             disabled={!conversationActive}
+            title={isListening ? 'Stop listening' : 'Speak to type'}
           >
             {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
-          
+
           <button
             id="send-btn"
             onClick={handleSendMessage}
             className="btn btn-primary"
-            disabled={!inputMessage.trim() || !conversationActive || sendMessageMutation.isLoading}
+            disabled={!inputMessage.trim() || !conversationActive || sendMessageMutation.isPending}
           >
             <Send className="w-5 h-5" />
           </button>

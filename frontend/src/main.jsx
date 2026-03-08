@@ -13,10 +13,20 @@ initSentry();
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (replaced cacheTime)
-      retry: 1,
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      retry: (failureCount, error) => {
+        // Don't retry on 4xx errors — only on network issues or 5xx
+        const status = error?.response?.status;
+        if (status && status < 500) return false;
+        return failureCount < 1;
+      },
       refetchOnWindowFocus: false,
+    },
+    mutations: {
+      // Surface unhandled mutation errors (components with their own onError won't double-toast
+      // since the axios interceptor already uses toast IDs for deduplication)
+      retry: false,
     },
   },
 });

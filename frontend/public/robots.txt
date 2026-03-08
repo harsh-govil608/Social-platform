@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /pricing
+
+Disallow: /api/
+Disallow: /onboarding
+Disallow: /chat/
+Disallow: /call/
+Disallow: /admin/
+
+Sitemap: https://langpal.app/sitemap.xml

@@ -9,7 +9,7 @@ const postSchema = new mongoose.Schema({
     content: {
         type: String,
         required: true,
-        maxlength: 500
+        maxlength: 1000
     },
     images: [{
         type: String
@@ -32,7 +32,7 @@ const postSchema = new mongoose.Schema({
         text: {
             type: String,
             required: true,
-            maxlength: 200
+            maxlength: 1000
         },
         createdAt: {
             type: Date,
@@ -49,6 +49,8 @@ const postSchema = new mongoose.Schema({
             default: Date.now
         }
     }],
+    tags: [{ type: String, maxlength: 30 }],
+    mood: { type: String, default: '' },
     visibility: {
         type: String,
         enum: ['public', 'friends', 'private'],

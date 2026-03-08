@@ -507,12 +507,12 @@ const EnhancedLanguageJourneyPage = () => {
                 key={feature.id}
                 onClick={() => setActiveFeature(feature.id)}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                  activeFeature === feature.id 
-                    ? `bg-${feature.color}/20 text-${feature.color}` 
-                    : 'hover:bg-base-200'
+                  activeFeature === feature.id
+                    ? 'bg-primary/20 text-primary'
+                    : 'hover:bg-base-200 text-base-content'
                 }`}
               >
-                <div className={`text-${feature.color}`}>
+                <div className={activeFeature === feature.id ? 'text-primary' : 'text-base-content/60'}>
                   {feature.icon}
                 </div>
                 {sidebarOpen && (

@@ -134,6 +134,11 @@ export async function commentOnPost(postId, text) {
   return response.data;
 }
 
+export async function editPost(postId, data) {
+  const response = await axiosInstance.patch(`/posts/${postId}`, data);
+  return response.data;
+}
+
 export async function deletePost(postId) {
   const response = await axiosInstance.delete(`/posts/${postId}`);
   return response.data;

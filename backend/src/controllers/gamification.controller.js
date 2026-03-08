@@ -59,55 +59,55 @@ export const initializeAchievements = async () => {
       rewards: { xp: 2000, coins: 5000, unlockFeature: 'custom_learning_path' }
     },
 
-    // Coding achievements
+    // Vocabulary achievements
     {
-      name: 'code-warrior',
-      title: 'Code Warrior',
-      description: 'Solve your first DSA problem',
-      icon: '⚔️',
-      category: 'coding',
+      name: 'word-explorer',
+      title: 'Word Explorer',
+      description: 'Review your first 10 vocabulary words',
+      icon: '📖',
+      category: 'language',
       difficulty: 'bronze',
       points: 10,
-      requirement: 1,
+      requirement: 10,
       criteria: {
         type: 'count',
-        metric: 'dsaProblemsCompleted',
-        target: 1,
-        description: 'Solve 1 DSA problem'
+        metric: 'vocabularyReviewed',
+        target: 10,
+        description: 'Review 10 vocabulary words'
       },
       rewards: { xp: 50, coins: 100 }
     },
     {
-      name: 'problem-solver',
-      title: 'Problem Solver',
-      description: 'Solve 50 DSA problems',
-      icon: '💻',
-      category: 'coding',
+      name: 'word-collector',
+      title: 'Word Collector',
+      description: 'Review 50 vocabulary words',
+      icon: '📚',
+      category: 'language',
       difficulty: 'silver',
       points: 50,
       requirement: 50,
       criteria: {
         type: 'count',
-        metric: 'dsaProblemsCompleted',
+        metric: 'vocabularyReviewed',
         target: 50,
-        description: 'Solve 50 DSA problems'
+        description: 'Review 50 vocabulary words'
       },
       rewards: { xp: 500, coins: 1000 }
     },
     {
-      name: 'algorithm-master',
-      title: 'Algorithm Master',
-      description: 'Solve 200 DSA problems',
+      name: 'grammar-guru',
+      title: 'Grammar Guru',
+      description: 'Review 200 vocabulary words',
       icon: '🧠',
-      category: 'coding',
+      category: 'language',
       difficulty: 'gold',
       points: 200,
       requirement: 200,
       criteria: {
         type: 'count',
-        metric: 'dsaProblemsCompleted',
+        metric: 'vocabularyReviewed',
         target: 200,
-        description: 'Solve 200 DSA problems'
+        description: 'Review 200 vocabulary words'
       },
       rewards: { xp: 2000, coins: 5000 }
     },
@@ -273,11 +273,19 @@ export const initializeAchievements = async () => {
     }
   ];
 
+  // Deactivate old DSA/coding achievements that no longer apply
+  await Achievement.updateMany(
+    { name: { $in: ['code-warrior', 'problem-solver', 'algorithm-master'] } },
+    { isActive: false }
+  );
+
+  // Upsert all achievements so existing entries get updated too
   for (const achievementData of defaultAchievements) {
-    const existing = await Achievement.findOne({ name: achievementData.name });
-    if (!existing) {
-      await Achievement.create(achievementData);
-    }
+    await Achievement.findOneAndUpdate(
+      { name: achievementData.name },
+      { $set: achievementData },
+      { upsert: true, new: true }
+    );
   }
 
   log.debug('Achievements initialized');

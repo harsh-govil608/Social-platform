@@ -8,6 +8,7 @@ import {
     toggleLikePost,
     commentOnPost,
     deletePost,
+    editPost,
     sharePost
 } from "../controllers/post.controller.js";
 import { validateCreatePost, validatePostId, validateComment } from "../validators/post.validator.js";
@@ -31,6 +32,7 @@ router.get("/", getFeedPosts); // Default route for getting posts
 router.get("/feed", getFeedPosts);
 router.get("/user/:userId", getUserPosts);
 router.delete("/:postId", deletePost);
+router.patch("/:postId", validatePostId, editPost);
 
 // Post interactions
 router.post("/:postId/like", validatePostId, toggleLikePost);

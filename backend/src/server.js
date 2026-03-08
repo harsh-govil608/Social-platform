@@ -65,6 +65,7 @@ import { initializeAchievements } from "./controllers/gamification.controller.js
 import { initSentry, sentryRequestHandler, sentryTracingHandler, sentryErrorHandler } from "./lib/sentry.js";
 import { performanceMonitoring, requestIdMiddleware, memoryMonitoring } from "./middleware/performance.middleware.js";
 import { log } from "./lib/logger.js";
+import { initSocketService } from "./lib/socketService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -222,23 +223,23 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(frontendBuildPath, 'index.html'));
 });
 
-// Socket.io connection handling for real-time conversation
+// Initialize socket service so controllers can emit notifications
+initSocketService(io);
+
+// Socket.io connection handling
 io.on('connection', (socket) => {
     log.debug('New client connected', { socketId: socket.id });
 
-    // Join user to their personal room
+    // Join user to their notification room
+    socket.on('join-notifications', (userId) => {
+        socket.join(`notification-${userId}`);
+        log.debug('User joined notification room', { userId });
+    });
+
+    // Join user to their conversation room (for AI practice streaming)
     socket.on('join-conversation', (userId) => {
         socket.join(`conversation-${userId}`);
         log.debug('User joined conversation room', { userId });
-    });
-
-    // Handle real-time message streaming
-    socket.on('conversation-message', async (data) => {
-        const { userId, message } = data;
-        // Emit back to the specific user's room
-        io.to(`conversation-${userId}`).emit('ai-response-chunk', {
-            chunk: 'Processing...'
-        });
     });
 
     socket.on('disconnect', () => {

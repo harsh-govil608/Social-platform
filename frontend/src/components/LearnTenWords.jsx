@@ -40,7 +40,6 @@ const LearnTenWords = ({
   const [isFlipped, setIsFlipped] = useState(false);
   const [masteredWords, setMasteredWords] = useState(new Set());
   const [difficultWords, setDifficultWords] = useState(new Set());
-  const [currentSession, setCurrentSession] = useState('learning');
   const [quizScore, setQuizScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [lives, setLives] = useState(3);
@@ -87,8 +86,9 @@ const LearnTenWords = ({
   // The fetchedWords from the API already contains the vocabulary data
 
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [currentSession, setCurrentSession] = useState('flashcards');
   // Use words from MongoDB or empty array while loading
-  const currentWords = wordsData.length > 0 ? wordsData : 
+  const currentWords = wordsData.length > 0 ? wordsData :
     (fetchedWords?.words || []);
 
   // Learning modes

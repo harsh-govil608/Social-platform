@@ -328,38 +328,30 @@ export const getTaskHistory = async (req, res) => {
   }
 };
 
-// Helper function to determine task type for the day
+// Daily task is always vocabulary — the core learning activity
 async function determineTaskType(userId) {
-  // Get user's learning preferences
-  const user = await User.findById(userId);
-
-  // Simple rotation logic - can be enhanced with user preferences
-  const taskTypes = ["vocabulary", "grammar", "conversation", "reading", "listening"];
-  const dayOfYear = Math.floor(
-    (new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000
-  );
-
-  return taskTypes[dayOfYear % taskTypes.length];
+  return "vocabulary";
 }
 
 // Helper function to populate task content
 async function populateTaskContent(task) {
   if (task.taskType === "vocabulary" && task.content?.words?.length === 0) {
-    // Fetch vocabulary words for the user's language
     const user = await User.findById(task.user);
     const language = user?.learningLanguage || "spanish";
 
     const vocabularyWords = await Vocabulary.find({
-      language,
+      language: { $regex: new RegExp(`^${language}$`, "i") },
       isActive: true,
-    })
-      .limit(5);
+    }).limit(20);
 
     if (vocabularyWords.length > 0) {
       task.content.words = vocabularyWords.map((w) => ({
         word: w.word,
         translation: w.translation,
-        example: w.exampleSentence,
+        pronunciation: w.pronunciation || "",
+        category: w.category || "",
+        difficulty: w.difficulty || 1,
+        example: w.exampleSentence?.original || w.context || "",
       }));
       await task.save();
     }

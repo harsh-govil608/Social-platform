@@ -3,41 +3,75 @@ import { BellIcon, LogOutIcon, Zap, UserIcon, Flame } from "lucide-react";
 import ThemeSelector from "./ThemeSelector.jsx";
 import useLogout from "../hooks/useLogout";
 import useAuthUser from "../hooks/useAuthUser";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getUnreadNotificationCount } from "../lib/api";
+import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
 
 const Navbar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
   const isChatPage = location.pathname?.startsWith("/chat");
+  const queryClient = useQueryClient();
 
   const { logoutMutation } = useLogout();
 
-  // Get notification count
+  // Local extra count from real-time socket (resets when user visits /notifications)
+  const [socketCount, setSocketCount] = useState(0);
+  const isOnNotificationsPage = location.pathname === "/notifications";
+
+  // Reset socket count when user visits notifications page
+  useEffect(() => {
+    if (isOnNotificationsPage) setSocketCount(0);
+  }, [isOnNotificationsPage]);
+
+  // Connect to socket for real-time notification badge
+  useEffect(() => {
+    if (!authUser?._id) return;
+
+    const socketUrl = import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace("/api", "")
+      : "http://localhost:5001";
+
+    const socket = io(socketUrl, { withCredentials: true });
+
+    socket.on("connect", () => {
+      socket.emit("join-notifications", authUser._id);
+    });
+
+    socket.on("new-notification", () => {
+      setSocketCount((c) => c + 1);
+      // Also invalidate the query so count stays in sync
+      queryClient.invalidateQueries({ queryKey: ["unreadNotifications"] });
+    });
+
+    return () => socket.disconnect();
+  }, [authUser?._id, queryClient]);
+
+  // Get notification count from server (initial load + polling fallback)
   const { data: notificationData } = useQuery({
     queryKey: ["unreadNotifications"],
     queryFn: getUnreadNotificationCount,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 60000,
   });
 
-  const notificationCount = notificationData?.unreadCount || 0;
+  const baseCount = notificationData?.unreadCount || 0;
+  const notificationCount = isOnNotificationsPage ? 0 : baseCount;
   const streak = authUser?.streak || 0;
 
   return (
     <nav className="bg-base-200 border-b border-base-300 sticky top-0 z-30 h-16 flex items-center">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-end w-full">
-          {/* LOGO - ONLY IN THE CHAT PAGE or mobile */}
-          {(isChatPage || true) && (
-            <div className="pl-5 lg:hidden">
-              <Link to="/" className="flex items-center gap-2">
-                <Zap className="size-7 text-primary" />
-                <span className="text-xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-                  LangPal
-                </span>
-              </Link>
-            </div>
-          )}
+          {/* LOGO - visible on mobile (sidebar hidden) */}
+          <div className="pl-5 lg:hidden">
+            <Link to="/" className="flex items-center gap-2">
+              <Zap className="size-7 text-primary" />
+              <span className="text-xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
+                LangPal
+              </span>
+            </Link>
+          </div>
 
           <div className="flex items-center gap-3 sm:gap-4 ml-auto">
             {/* Streak indicator */}
