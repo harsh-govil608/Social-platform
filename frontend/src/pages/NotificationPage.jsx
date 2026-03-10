@@ -57,10 +57,11 @@ const NotificationsPage = () => {
 
   const { mutate: acceptRequest, isPending: isAccepting } = useMutation({
     mutationFn: acceptFriendRequest,
-    onSuccess: () => {
+    onSuccess: (_, requestId) => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendedUsers"] });
     },
   });
 
@@ -149,6 +150,7 @@ const NotificationsPage = () => {
                             onClick={(e) => {
                               e.stopPropagation();
                               acceptRequest(notif.entityId);
+                              markOneRead(notif._id);
                             }}
                             disabled={isAccepting}
                           >

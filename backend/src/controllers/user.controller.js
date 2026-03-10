@@ -94,8 +94,7 @@ export async function acceptFriendRequest(req, res) {
   try {
     const { id: requestId } = req.params;
 
-    const friendRequest = await FriendRequest.findById(requestId)
-      .populate('sender', 'fullName');
+    const friendRequest = await FriendRequest.findById(requestId);
 
     if (!friendRequest) {
       return res.status(404).json({ message: "Friend request not found" });
@@ -105,30 +104,35 @@ export async function acceptFriendRequest(req, res) {
       return res.status(403).json({ message: "You are not authorized to accept this request" });
     }
 
+    // Use plain IDs to avoid any issues with populated documents
+    const senderId = friendRequest.sender;
+    const recipientId = friendRequest.recipient;
+
     friendRequest.status = "accepted";
     await friendRequest.save();
-    await User.findByIdAndUpdate(friendRequest.sender, {
-      $addToSet: { friends: friendRequest.recipient },
+
+    await User.findByIdAndUpdate(senderId, {
+      $addToSet: { friends: recipientId },
     });
 
-    await User.findByIdAndUpdate(friendRequest.recipient, {
-      $addToSet: { friends: friendRequest.sender },
+    await User.findByIdAndUpdate(recipientId, {
+      $addToSet: { friends: senderId },
     });
 
-    // Create notification for the sender
+    // Create notification for the original sender
     const acceptNotification = await Notification.create({
-      recipient: friendRequest.sender,
-      sender: friendRequest.recipient,
+      recipient: senderId,
+      sender: recipientId,
       type: 'friend_accept',
       entityId: friendRequest._id,
       entityModel: 'FriendRequest',
       message: `${req.user.fullName} accepted your friend request`
     });
-    emitNotification(friendRequest.sender, acceptNotification);
+    emitNotification(senderId, acceptNotification);
 
     res.status(200).json({ message: "Friend request accepted" });
   } catch (error) {
-    log.debug("Error in acceptFriendRequest controller", error.message);
+    log.error("Error in acceptFriendRequest controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
