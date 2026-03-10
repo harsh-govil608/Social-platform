@@ -69,7 +69,7 @@ const EnhancedLanguageJourneyPage = () => {
   const { data: stats } = useQuery({
     queryKey: ["learningStats"],
     queryFn: getLearningStats,
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
     enabled: true // Enable API call
   });
 

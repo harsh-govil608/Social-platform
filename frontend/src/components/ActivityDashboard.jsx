@@ -64,7 +64,7 @@ const ActivityDashboard = () => {
   const { data: dashboardData, isLoading: loadingDashboard, refetch: refetchDashboard } = useQuery({
     queryKey: ['activityDashboard'],
     queryFn: getActivityDashboard,
-    refetchInterval: 60000 // Refresh every minute
+    refetchInterval: 5 * 60 * 1000 // Refresh every 5 minutes
   });
 
   // Fetch weekly stats
@@ -91,7 +91,7 @@ const ActivityDashboard = () => {
   const { data: weeklyLeaderboard, isLoading: loadingLeaderboard } = useQuery({
     queryKey: ['weeklyLeaderboard'],
     queryFn: () => getWeeklyLeaderboard(10),
-    refetchInterval: 60000 // Refresh every minute
+    refetchInterval: 5 * 60 * 1000 // Refresh every 5 minutes
   });
 
   // Update session timer

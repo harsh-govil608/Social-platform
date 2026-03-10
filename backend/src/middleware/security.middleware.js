@@ -61,7 +61,7 @@ setInterval(() => {
 // General API rate limiter
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDevelopment ? 1000 : 100, // Much higher limit in development
+  max: isDevelopment ? 1000 : 500, // 500 requests per 15 min in production
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
