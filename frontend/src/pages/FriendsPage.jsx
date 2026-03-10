@@ -99,7 +99,7 @@ const FriendsPage = () => {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-semibold truncate">{friend.fullName}</h3>
-                        <p className="text-sm text-base-content/70">@{friend.username}</p>
+                        <p className="text-sm text-base-content/70">{friend.nativeLanguage} → {friend.learningLanguage}</p>
                       </div>
                     </div>
 
