@@ -15,8 +15,7 @@ export async function getNotifications(req, res) {
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
-            .populate('sender', 'fullName profilePic')
-            .populate('entityId');
+            .populate('sender', 'fullName profilePic');
 
         const totalNotifications = await Notification.countDocuments({
             recipient: userId
