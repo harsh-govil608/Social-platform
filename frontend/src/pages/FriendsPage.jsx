@@ -1,16 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
-import { getUserFriends, getRecommendedUsers, sendFriendRequest } from "../lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getUserFriends, getRecommendedUsers, sendFriendRequest, getFriendRequests, acceptFriendRequest } from "../lib/api";
 import FriendCard from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 import PageLoader from "../components/PageLoader";
 import VideoChat from "../components/VideoChat";
 import { toast } from "react-hot-toast";
 import { useState } from "react";
-import { Video } from "lucide-react";
+import { Video, UserCheck } from "lucide-react";
 
 const FriendsPage = () => {
   const [activeTab, setActiveTab] = useState("friends");
   const [selectedFriendForCall, setSelectedFriendForCall] = useState(null);
+  const queryClient = useQueryClient();
 
   // Fetch user's friends
   const {
@@ -21,6 +22,13 @@ const FriendsPage = () => {
     queryKey: ["friends"],
     queryFn: getUserFriends,
   });
+
+  // Fetch pending incoming friend requests
+  const { data: friendRequestsData, isLoading: requestsLoading } = useQuery({
+    queryKey: ["friendRequests"],
+    queryFn: getFriendRequests,
+  });
+  const incomingRequests = friendRequestsData?.incomingReqs || [];
 
   // Fetch recommended users
   const {
@@ -33,11 +41,23 @@ const FriendsPage = () => {
     queryFn: getRecommendedUsers,
   });
 
+  const { mutate: acceptRequest, isPending: isAccepting } = useMutation({
+    mutationFn: acceptFriendRequest,
+    onSuccess: () => {
+      toast.success("Friend request accepted!");
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendedUsers"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+    onError: () => toast.error("Failed to accept request"),
+  });
+
   const handleSendFriendRequest = async (userId) => {
     try {
       await sendFriendRequest(userId);
       toast.success("Friend request sent!");
-      refetchRecommended(); // Refresh the recommended users list
+      refetchRecommended();
     } catch (error) {
       toast.error(error?.response?.data?.message || "Failed to send friend request");
     }
@@ -51,7 +71,7 @@ const FriendsPage = () => {
     setSelectedFriendForCall(null);
   };
 
-  if (friendsLoading || recommendedLoading) return <PageLoader />;
+  if (friendsLoading || recommendedLoading || requestsLoading) return <PageLoader />;
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -69,6 +89,15 @@ const FriendsPage = () => {
           onClick={() => setActiveTab("friends")}
         >
           My Friends ({friends?.length || 0})
+        </button>
+        <button
+          className={`tab ${activeTab === "requests" ? "tab-active" : ""}`}
+          onClick={() => setActiveTab("requests")}
+        >
+          Requests
+          {incomingRequests.length > 0 && (
+            <span className="badge badge-primary badge-sm ml-1">{incomingRequests.length}</span>
+          )}
         </button>
         <button
           className={`tab ${activeTab === "discover" ? "tab-active" : ""}`}
@@ -140,6 +169,47 @@ const FriendsPage = () => {
             </div>
           ) : (
             <NoFriendsFound />
+          )}
+        </div>
+      )}
+
+      {/* Requests Tab */}
+      {activeTab === "requests" && (
+        <div>
+          {incomingRequests.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📭</div>
+              <h3 className="text-xl font-semibold mb-2">No pending requests</h3>
+              <p className="text-base-content/70">You have no incoming friend requests.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {incomingRequests.map((req) => (
+                <div key={req._id} className="card bg-base-200 hover:shadow-md transition-shadow">
+                  <div className="card-body p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="avatar size-12">
+                        <img src={req.sender.profilePic || "/avatar.png"} alt={req.sender.fullName} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold truncate">{req.sender.fullName}</h3>
+                        <p className="text-sm text-base-content/70">
+                          {req.sender.nativeLanguage} → {req.sender.learningLanguage}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-primary btn-sm w-full gap-1"
+                      onClick={() => acceptRequest(req._id)}
+                      disabled={isAccepting}
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      Accept
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
