@@ -500,56 +500,45 @@ router.get("/dashboard", protectRoute, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    const activity = await UserActivity.findOne({ user: userId });
-    
+    const [activity, user] = await Promise.all([
+      UserActivity.findOne({ user: userId }),
+      User.findById(userId).select('streak bestStreak'),
+    ]);
+
     if (!activity) {
       return res.json({
         todayTime: 0,
         weekTime: 0,
         monthTime: 0,
-        currentStreak: 0,
+        currentStreak: user?.streak || 0,
         totalXP: 0,
         isOnline: false
       });
     }
-    
+
     // Today's time
     const today = new Date().toDateString();
-    const todaySession = activity.dailySessions.find(s => 
+    const todaySession = activity.dailySessions.find(s =>
       new Date(s.date).toDateString() === today
     );
     const todayTime = todaySession?.totalTimeSpent || 0;
-    
+
     // This week's time
     const weekStats = activity.calculateWeeklyStats();
     const weekTime = weekStats.totalTimeSpent;
-    
+
     // This month's time
     const now = new Date();
     const monthSessions = activity.dailySessions.filter(s => {
       const sessionDate = new Date(s.date);
-      return sessionDate.getMonth() === now.getMonth() && 
+      return sessionDate.getMonth() === now.getMonth() &&
              sessionDate.getFullYear() === now.getFullYear();
     });
     const monthTime = monthSessions.reduce((sum, s) => sum + (s.totalTimeSpent || 0), 0);
-    
-    // Calculate streak
-    let currentStreak = 0;
-    const sortedSessions = [...activity.dailySessions]
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-    
-    for (let i = 0; i < sortedSessions.length; i++) {
-      const sessionDate = new Date(sortedSessions[i].date);
-      const expectedDate = new Date();
-      expectedDate.setDate(expectedDate.getDate() - i);
-      
-      if (sessionDate.toDateString() === expectedDate.toDateString()) {
-        currentStreak++;
-      } else {
-        break;
-      }
-    }
-    
+
+    // Use User.streak as single source of truth (same as Navbar)
+    const currentStreak = user?.streak || 0;
+
     res.json({
       todayTime,
       weekTime,

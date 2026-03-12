@@ -7,10 +7,13 @@ import {
   Target,
   ChevronRight,
   CheckCircle2,
-  Clock
+  Clock,
+  Users,
+  BookOpen,
 } from "lucide-react";
 import useAuthUser from "../hooks/useAuthUser";
 import { axiosInstance } from "../lib/axios";
+import { getEnglishWordOfDay } from "../lib/learningApi";
 
 const ProgressPage = () => {
   const { authUser } = useAuthUser();
@@ -24,6 +27,22 @@ const ProgressPage = () => {
     },
   });
 
+  const { data: englishWOTD, isLoading: wotdLoading } = useQuery({
+    queryKey: ["englishWordOfDay"],
+    queryFn: getEnglishWordOfDay,
+    staleTime: 1000 * 60 * 60,
+  });
+
+  // Fetch connected friends
+  const { data: friendsData } = useQuery({
+    queryKey: ["myFriends"],
+    queryFn: async () => {
+      const res = await axiosInstance.get("/users/friends");
+      return res.data;
+    },
+  });
+
+  const friends = friendsData?.friends || [];
   const streak = authUser?.streak || 0;
   const todayPracticed = activity?.todayPracticed || false;
 
@@ -135,27 +154,109 @@ const ProgressPage = () => {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <h3 className="font-semibold text-lg mb-4">Ways to Practice</h3>
-        <div className="space-y-3">
-          <Link
-            to="/practice"
-            className="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
-          >
-            <div className="card-body p-4 flex-row items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="bg-primary/10 p-3 rounded-xl">
-                  <MessageCircle className="size-6 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Chat with a Friend</h4>
-                  <p className="text-sm opacity-70">Practice writing in your target language</p>
+        {/* Word of the Day */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpen className="size-5 text-secondary" />
+            <h3 className="font-semibold text-lg">Word of the Day</h3>
+          </div>
+          {wotdLoading ? (
+            <div className="card bg-base-200 animate-pulse">
+              <div className="card-body p-5">
+                <div className="h-6 bg-base-300 rounded w-1/3 mb-2" />
+                <div className="h-4 bg-base-300 rounded w-3/4" />
+              </div>
+            </div>
+          ) : (
+            <div className="card bg-gradient-to-r from-secondary/10 to-accent/10 border border-secondary/30">
+              <div className="card-body p-5">
+                <div className="flex items-start gap-4">
+                  <div className="bg-secondary/20 p-3 rounded-2xl shrink-0">
+                    <BookOpen className="size-6 text-secondary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <p className="font-bold text-2xl text-secondary">
+                        {englishWOTD?.word?.word || "—"}
+                      </p>
+                      {englishWOTD?.word?.pronunciation && (
+                        <span className="text-sm text-base-content/50 font-mono">
+                          /{englishWOTD.word.pronunciation}/
+                        </span>
+                      )}
+                      {englishWOTD?.word?.partOfSpeech && (
+                        <span className="badge badge-ghost badge-sm italic">
+                          {englishWOTD.word.partOfSpeech}
+                        </span>
+                      )}
+                    </div>
+                    {englishWOTD?.word?.definition && (
+                      <p className="text-sm text-base-content/70 mt-1 leading-relaxed line-clamp-3">
+                        {englishWOTD.word.definition}
+                      </p>
+                    )}
+                    {englishWOTD?.word?.example && (
+                      <p className="text-xs text-base-content/50 mt-2 italic">
+                        "{englishWOTD.word.example}"
+                      </p>
+                    )}
+                    <p className="text-xs text-base-content/30 mt-2">Source: Merriam-Webster</p>
+                  </div>
                 </div>
               </div>
-              <ChevronRight className="size-5 opacity-50" />
             </div>
-          </Link>
+          )}
+        </div>
 
+        {/* Chat with Friends */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="size-5 text-primary" />
+            <h3 className="font-semibold text-lg">Chat with a Friend</h3>
+          </div>
+          {friends.length > 0 ? (
+            <div className="space-y-2">
+              {friends.map((friend) => (
+                <Link
+                  key={friend._id}
+                  to={`/chat/${friend._id}`}
+                  className="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
+                >
+                  <div className="card-body p-4 flex-row items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="avatar">
+                        <div className="w-10 h-10 rounded-full">
+                          <img src={friend.profilePic} alt={friend.fullName} />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">{friend.fullName}</p>
+                        <p className="text-xs text-base-content/50 capitalize">
+                          {friend.learningLanguage ? `Learning ${friend.learningLanguage}` : 'Language partner'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {friend.isOnline && <span className="w-2 h-2 rounded-full bg-success" />}
+                      <MessageCircle className="size-4 text-primary opacity-60" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="card bg-base-200">
+              <div className="card-body p-4 text-center">
+                <p className="text-sm text-base-content/50">No friends connected yet.</p>
+                <Link to="/find-partners" className="btn btn-primary btn-xs mt-2">Find Partners</Link>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Other Practice */}
+        <h3 className="font-semibold text-lg mb-3">Other Practice</h3>
+        <div className="space-y-3">
           <Link
             to="/conversation-practice"
             className="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { Toaster } from "react-hot-toast";
 import PageLoader from "./components/PageLoader.jsx";
@@ -39,6 +39,7 @@ const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage.jsx"));
 const PracticePage = lazy(() => import("./pages/PracticePage.jsx"));
 const ProgressPage = lazy(() => import("./pages/ProgressPage.jsx"));
 const DailyTaskPage = lazy(() => import("./pages/DailyTaskPage.jsx"));
+const WordOfDayPage = lazy(() => import("./pages/WordOfDayPage.jsx"));
 
 // Helper: protect routes that require auth + onboarding
 const Protected = ({ children, isAuthenticated, isOnboarded }) => {
@@ -54,11 +55,16 @@ const App = () => {
   const isAuthenticated = Boolean(authUser);
   const isOnboarded = authUser?.isOnboarded;
 
+  // Sync theme to <html> so it covers body, scrollbars, and overflow areas
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
   if (isLoading) return <PageLoader />;
 
   return (
     <ErrorBoundary>
-      <div className="h-screen" data-theme={theme}>
+      <div className="min-h-screen" data-theme={theme}>
         <Suspense fallback={<PageLoader />}>
           <Routes errorElement={<RouteErrorBoundary />}>
             {/* Auth routes */}
@@ -250,6 +256,14 @@ const App = () => {
               element={
                 <Protected isAuthenticated={isAuthenticated} isOnboarded={isOnboarded}>
                   <Layout showSidebar={true}><SubscriptionPage /></Layout>
+                </Protected>
+              }
+            />
+            <Route
+              path="/word-of-day"
+              element={
+                <Protected isAuthenticated={isAuthenticated} isOnboarded={isOnboarded}>
+                  <Layout showSidebar={true}><WordOfDayPage /></Layout>
                 </Protected>
               }
             />

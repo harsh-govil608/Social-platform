@@ -180,7 +180,7 @@ const EnhancedLanguageJourneyPage = () => {
               <FlameIcon className="w-8 h-8" />
             </div>
             <div className="stat-title">Streak</div>
-            <div className="stat-value text-primary">{progress?.currentStreak || 0}</div>
+            <div className="stat-value text-primary">{authUser?.streak || 0}</div>
             <div className="stat-desc">days</div>
           </div>
           
@@ -588,7 +588,7 @@ const EnhancedLanguageJourneyPage = () => {
               userProgress={{
                 level: progress?.currentLevel || 1,
                 completedChallenges: progress?.dailyChallenges?.completed?.length || 0,
-                streak: progress?.currentStreak || 0
+                streak: authUser?.streak || 0
               }}
               onComplete={(result) => {
                 queryClient.invalidateQueries(["learningProgress"]);

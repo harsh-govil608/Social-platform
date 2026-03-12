@@ -10,6 +10,7 @@ import {
   blockUser,
   unblockUser,
 } from '../lib/api';
+import { axiosInstance } from '../lib/axios';
 import {
   MapPin,
   Calendar,
@@ -20,6 +21,9 @@ import {
   Ban,
   MessageCircle,
   MoreVertical,
+  BookOpen,
+  Star,
+  Clock,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -101,8 +105,16 @@ const UserProfilePage = () => {
     );
   }
 
-  const isFollowing = user.followers?.some(f => f._id === authUser?._id);
-  const isFriend = user.friends?.some(f => f._id === authUser?._id);
+  const isFollowing = user.followers?.some(f => f._id?.toString() === authUser?._id?.toString());
+  const isFriend = user.friends?.some(f => f._id?.toString() === authUser?._id?.toString());
+  const canSeeVocabulary = isOwnProfile || isFriend;
+
+  // Fetch vocabulary (only when tab is active and user has access)
+  const { data: vocabularyData, isLoading: vocabLoading } = useQuery({
+    queryKey: ['userVocabulary', userId],
+    queryFn: () => axiosInstance.get(`/vocabulary/user/${userId}`).then(r => r.data),
+    enabled: !!userId && activeTab === 'vocabulary' && canSeeVocabulary,
+  });
 
   return (
     <div className="container mx-auto max-w-6xl p-4">
@@ -278,6 +290,15 @@ const UserProfilePage = () => {
         >
           Followers
         </button>
+        {canSeeVocabulary && (
+          <button
+            className={`tab ${activeTab === 'vocabulary' ? 'tab-active' : ''}`}
+            onClick={() => setActiveTab('vocabulary')}
+          >
+            <BookOpen className="w-4 h-4 mr-1" />
+            Vocabulary
+          </button>
+        )}
       </div>
 
       {/* Tab Content */}
@@ -363,6 +384,102 @@ const UserProfilePage = () => {
             {(!user.followers || user.followers.length === 0) && (
               <div className="col-span-full text-center py-8 opacity-60">
                 No followers yet
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'vocabulary' && canSeeVocabulary && (
+          <div>
+            {vocabLoading ? (
+              <div className="flex justify-center py-12">
+                <span className="loading loading-spinner loading-lg"></span>
+              </div>
+            ) : vocabularyData?.words?.length > 0 ? (
+              <div>
+                {/* Stats bar */}
+                <div className="stats shadow w-full mb-6">
+                  <div className="stat">
+                    <div className="stat-figure text-primary">
+                      <BookOpen className="w-8 h-8" />
+                    </div>
+                    <div className="stat-title">Total Words</div>
+                    <div className="stat-value text-primary">{vocabularyData.words.length}</div>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-figure text-success">
+                      <Star className="w-8 h-8" />
+                    </div>
+                    <div className="stat-title">Mastered</div>
+                    <div className="stat-value text-success">
+                      {vocabularyData.words.filter(w => w.repetitions >= 5).length}
+                    </div>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-figure text-warning">
+                      <Clock className="w-8 h-8" />
+                    </div>
+                    <div className="stat-title">Due Today</div>
+                    <div className="stat-value text-warning">
+                      {vocabularyData.words.filter(w => new Date(w.nextReviewDate) <= new Date()).length}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Word list */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {vocabularyData.words.map(word => {
+                    const isMastered = word.repetitions >= 5;
+                    const isDue = new Date(word.nextReviewDate) <= new Date();
+                    return (
+                      <div key={word._id} className="card bg-base-100 shadow border border-base-200 hover:border-primary transition-colors">
+                        <div className="card-body p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-bold text-lg truncate">{word.word}</span>
+                                {word.pronunciation && (
+                                  <span className="text-xs text-base-content/50 italic">/{word.pronunciation}/</span>
+                                )}
+                              </div>
+                              <p className="text-base-content/70 text-sm">{word.translation}</p>
+                              {word.exampleSentence && (
+                                <p className="text-xs text-base-content/50 mt-1 italic line-clamp-1">"{word.exampleSentence}"</p>
+                              )}
+                              <div className="flex items-center gap-2 mt-2 text-xs text-base-content/40">
+                                <span>{word.sourceLanguage} → {word.targetLanguage}</span>
+                                {word.category && word.category !== 'general' && (
+                                  <span className="badge badge-xs badge-ghost">{word.category}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              {isMastered ? (
+                                <span className="badge badge-success badge-sm gap-1">
+                                  <Star className="w-3 h-3" /> Mastered
+                                </span>
+                              ) : isDue ? (
+                                <span className="badge badge-warning badge-sm gap-1">
+                                  <Clock className="w-3 h-3" /> Due
+                                </span>
+                              ) : (
+                                <span className="badge badge-ghost badge-sm">Learning</span>
+                              )}
+                              <span className="text-xs text-base-content/40">×{word.repetitions || 0} reviews</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <BookOpen className="w-16 h-16 mx-auto opacity-20 mb-4" />
+                <p className="text-base-content/50">
+                  {isOwnProfile ? "You haven't added any vocabulary words yet." : `${user.fullName} hasn't added any vocabulary words yet.`}
+                </p>
               </div>
             )}
           </div>

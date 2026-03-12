@@ -851,6 +851,35 @@ export async function getWeeklyStats(req, res) {
 }
 
 /**
+ * Get vocabulary words for a specific user (visible to friends)
+ */
+export async function getUserVocabulary(req, res) {
+    try {
+        const { userId } = req.params;
+        const requesterId = req.user._id;
+
+        // Check friendship
+        const requester = await User.findById(requesterId).select('friends');
+        const isFriend = requester?.friends?.some(f => f.toString() === userId);
+        const isSelf   = requesterId.toString() === userId;
+
+        if (!isSelf && !isFriend) {
+            return res.status(403).json({ message: 'Only friends can view vocabulary' });
+        }
+
+        const words = await VocabularyReview.find({ userId, isActive: true })
+            .select('word translation pronunciation exampleSentence isMastered repetitions category targetLanguage createdAt')
+            .sort({ createdAt: -1 })
+            .limit(100);
+
+        res.status(200).json({ success: true, words });
+    } catch (error) {
+        log.error('Error in getUserVocabulary:', error);
+        res.status(500).json({ message: 'Failed to get vocabulary' });
+    }
+}
+
+/**
  * Seed starter vocabulary words for a new user
  */
 export async function seedStarterWords(req, res) {

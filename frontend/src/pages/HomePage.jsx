@@ -11,10 +11,12 @@ import {
   BookOpen,
   Users,
   Brain,
+  Star,
 } from "lucide-react";
 import useAuthUser from "../hooks/useAuthUser";
 import { getUserFriends } from "../lib/api";
 import { axiosInstance } from "../lib/axios";
+import { getWordOfDay, getEnglishWordOfDay } from "../lib/learningApi";
 
 const HomePage = () => {
   const { authUser } = useAuthUser();
@@ -36,9 +38,21 @@ const HomePage = () => {
     },
   });
 
+  const { data: wordOfDay } = useQuery({
+    queryKey: ["wordOfDay"],
+    queryFn: getWordOfDay,
+  });
+
+  const { data: englishWOTD, isLoading: englishWOTDLoading } = useQuery({
+    queryKey: ["englishWordOfDay"],
+    queryFn: getEnglishWordOfDay,
+    staleTime: 1000 * 60 * 60, // 1 hour — word changes once a day
+  });
+
   const streak = authUser?.streak || 0;
   const taskCompleted = todayTask?.task?.status === "completed";
   const taskStep = todayTask?.currentStep || "taskStart";
+  const wotdCompleted = wordOfDay?.alreadyCompleted;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-base-100">
@@ -77,6 +91,97 @@ const HomePage = () => {
             </div>
           </div>
         </div>
+
+        {/* Word of the Day — English (Merriam-Webster) */}
+        <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
+          <BookOpen className="size-5 text-secondary" />
+          Word of the Day
+        </h2>
+        {englishWOTDLoading ? (
+          <div className="card bg-gradient-to-r from-secondary/10 to-accent/10 border border-secondary/20 mb-4 animate-pulse">
+            <div className="card-body p-5">
+              <div className="h-4 bg-base-300 rounded w-1/4 mb-3" />
+              <div className="h-6 bg-base-300 rounded w-1/3 mb-2" />
+              <div className="h-3 bg-base-300 rounded w-3/4" />
+            </div>
+          </div>
+        ) : (
+          <div className="card bg-gradient-to-r from-secondary/10 to-accent/10 border border-secondary/30 mb-4">
+            <div className="card-body p-5">
+              <div className="flex items-start gap-4">
+                <div className="bg-secondary/20 p-3 rounded-2xl shrink-0">
+                  <BookOpen className="size-7 text-secondary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <p className="font-bold text-2xl text-secondary leading-tight">
+                      {englishWOTD?.word?.word || "—"}
+                    </p>
+                    {englishWOTD?.word?.pronunciation && (
+                      <span className="text-sm text-base-content/50 font-mono">
+                        /{englishWOTD.word.pronunciation}/
+                      </span>
+                    )}
+                    {englishWOTD?.word?.partOfSpeech && (
+                      <span className="badge badge-ghost badge-sm italic">
+                        {englishWOTD.word.partOfSpeech}
+                      </span>
+                    )}
+                  </div>
+                  {englishWOTD?.word?.definition && (
+                    <p className="text-sm text-base-content/70 mt-1 leading-relaxed line-clamp-3">
+                      {englishWOTD.word.definition}
+                    </p>
+                  )}
+                  {englishWOTD?.word?.example && (
+                    <p className="text-xs text-base-content/50 mt-2 italic">
+                      "{englishWOTD.word.example}"
+                    </p>
+                  )}
+                  <p className="text-xs text-base-content/30 mt-2">
+                    Source: Merriam-Webster
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Language Practice Word — Write a sentence for XP */}
+        {wordOfDay?.word && (
+          <Link
+            to="/word-of-day"
+            className={`card transition-all mb-8 ${
+              wotdCompleted
+                ? "bg-success/10 border border-success/30"
+                : "bg-base-200 border border-base-300 hover:border-secondary/40"
+            }`}
+          >
+            <div className="card-body p-4 flex-row items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${wotdCompleted ? "bg-success/20" : "bg-secondary/10"}`}>
+                  {wotdCompleted ? (
+                    <CheckCircle2 className="size-5 text-success" />
+                  ) : (
+                    <Star className="size-5 text-secondary" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{wordOfDay.word.word}</p>
+                  <p className="text-xs text-base-content/50">{wordOfDay.word.translation}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {wotdCompleted ? (
+                  <span className="badge badge-success badge-sm">+{wordOfDay.completion?.xpAwarded || 20} XP</span>
+                ) : (
+                  <span className="text-xs text-base-content/40">Write a sentence → +20 XP</span>
+                )}
+                {!wotdCompleted && <ChevronRight className="size-5 text-base-content/30" />}
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Daily Task - Primary CTA */}
         <h2 className="font-semibold text-lg mb-4">Today's Task</h2>

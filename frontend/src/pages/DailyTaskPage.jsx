@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import axiosInstance from "../lib/axios";
 import useAuthUser from "../hooks/useAuthUser";
+import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
@@ -440,6 +441,7 @@ const TABS = ["study", "quiz", "results", "history"];
 const DailyTaskPage = () => {
   const { authUser } = useAuthUser();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [task, setTask] = useState(null);
   const [apiStep, setApiStep] = useState(null);
@@ -533,6 +535,8 @@ const DailyTaskPage = () => {
         });
         await axiosInstance.post("/daily-task/partner-interaction", { accepted: false, durationSeconds: 0 }).catch(() => {});
         await axiosInstance.post("/daily-task/complete").catch(() => {});
+        // Refresh authUser so Navbar streak updates immediately
+        queryClient.invalidateQueries({ queryKey: ["authUser"] });
       } catch { /* silent */ }
     })();
   };

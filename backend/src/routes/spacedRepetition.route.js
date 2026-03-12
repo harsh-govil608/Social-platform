@@ -15,7 +15,8 @@ import {
     submitReviewWithLimit,
     getDueReviewsWithLimit,
     getWeeklyStats,
-    seedStarterWords
+    seedStarterWords,
+    getUserVocabulary
 } from '../controllers/spacedRepetition.controller.js';
 import { validateAddCustomVocab } from '../validators/learning.validator.js';
 
@@ -324,6 +325,7 @@ router.post('/bulk', addWordsBulk);
 
 // Seed starter vocabulary words for new users
 router.post('/seed-starter', seedStarterWords);
+router.get('/user/:userId', getUserVocabulary);
 
 /**
  * @swagger

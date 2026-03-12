@@ -1,6 +1,7 @@
 import LearningProgress from '../models/LearningProgress.js';
 import User from '../models/User.js';
 import UserActivity from '../models/UserActivity.js';
+import VocabularyReview from '../models/VocabularyReview.js';
 import PronunciationPhrase from '../models/PronunciationPhrase.js';
 import { seedPronunciationPhrases } from '../lib/seedPhrases.js';
 import { log } from '../lib/logger.js';
@@ -324,21 +325,26 @@ export async function updateLearningPath(req, res) {
         startedAt: new Date()
       });
     } else {
-      path.progress = progress || path.progress;
-      path.completedModules = completedModules || path.completedModules;
+      path.progress = progress ?? path.progress;
+      path.completedModules = completedModules ?? path.completedModules;
 
       if (path.progress >= 100 && !path.completedAt) {
         path.completedAt = new Date();
 
         // Award XP and Coins for completing path
-        const xpResult = learningProgress.addXP(500);
-        const coinsEarned = 100; // Bonus coins for path completion
-
-        // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+        learningProgress.addXP(500);
+        const coinsEarned = 100;
         await updateUserXPAndCoins(userId, 500, coinsEarned);
       }
     }
-    
+
+    // Award XP for module completion (skip on resets)
+    if (!req.body.skipXP) {
+      learningProgress.addXP(20);
+      await updateUserXPAndCoins(userId, 20, 0);
+    }
+
+    learningProgress.markModified('learningPaths');
     learningProgress.updateStreak();
     await learningProgress.save();
     
@@ -354,47 +360,66 @@ export async function addVocabularyWord(req, res) {
   try {
     const userId = req.user._id;
     const { word, translation, language } = req.body;
-    
+
     if (!word || !translation) {
       return res.status(400).json({ message: 'Word and translation are required' });
     }
-    
+
+    const user = await User.findById(userId).select('nativeLanguage learningLanguage');
+    const targetLanguage = language || user?.learningLanguage || 'english';
+    const sourceLanguage = user?.nativeLanguage || 'english';
+
     let progress = await LearningProgress.findOne({ user: userId });
-    
+
     if (!progress) {
       progress = await LearningProgress.create({ user: userId });
     }
-    
-    // Check if word already exists
-    const existingWord = progress.vocabulary.find(v => 
-      v.word.toLowerCase() === word.toLowerCase() && 
-      v.language === language
+
+    // Check if word already exists in progress
+    const existingWord = progress.vocabulary.find(v =>
+      v.word.toLowerCase() === word.toLowerCase() &&
+      v.language === targetLanguage
     );
-    
+
     if (existingWord) {
       return res.status(400).json({ message: 'Word already in vocabulary' });
     }
-    
-    // Add new word
+
+    // Add to LearningProgress vocabulary (for XP/stats tracking)
     progress.vocabulary.push({
       word,
       translation,
-      language: language || req.user.learningLanguage,
+      language: targetLanguage,
       learnedAt: new Date(),
       reviewCount: 0
     });
-    
+
     progress.wordsLearned = progress.vocabulary.length;
 
-    // Add XP and Coins for learning new word
     const xpResult = progress.addXP(5);
-    const coinsEarned = 1; // 1 coin per new word
+    const coinsEarned = 1;
 
     progress.updateStreak();
     await progress.save();
 
-    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
     await updateUserXPAndCoins(userId, 5, coinsEarned);
+
+    // Also add to VocabularyReview so word appears in the review page
+    try {
+      await VocabularyReview.create({
+        userId,
+        word: word.toLowerCase().trim(),
+        translation,
+        sourceLanguage,
+        targetLanguage,
+        category: 'user',
+        source: 'user',
+        nextReviewDate: new Date(),
+      });
+    } catch (dupErr) {
+      // Duplicate key — word already in review deck, that's fine
+      if (dupErr.code !== 11000) throw dupErr;
+    }
 
     res.status(200).json({
       message: 'Word added to vocabulary',

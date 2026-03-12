@@ -251,7 +251,7 @@ export function findBestMatches(user, candidates, limit = 20) {
     const matches = candidates
         .filter(c => c._id.toString() !== user._id.toString()) // Exclude self
         .map(candidate => calculateCompatibilityScore(user, candidate))
-        .filter(match => match.score >= 20) // Minimum threshold
+        .filter(match => match.score >= 5) // Minimum threshold
         .sort((a, b) => b.score - a.score)
         .slice(0, limit);
 

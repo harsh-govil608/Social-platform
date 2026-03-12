@@ -7,6 +7,7 @@ import {
 import { Link, useNavigate } from 'react-router';
 import { axiosInstance } from '../lib/axios';
 import toast from 'react-hot-toast';
+import { LANGUAGES } from '../constants';
 
 // ─── Skeleton Card ────────────────────────────────────────────────────────────
 const SkeletonCard = () => (
@@ -392,6 +393,22 @@ const FindPartnersPage = () => {
     }
   }, []);
 
+  const fetchAllUsers = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await axiosInstance.get('/matching/search?limit=100');
+      const data = (response.data.partners || []).map(p => ({
+        candidate: p, score: 0, quality: { label: 'Match', color: 'neutral' }
+      }));
+      setMatches(data);
+      setStats({ total: data.length, online: data.filter(m => m.candidate.isOnline).length, highMatch: 0 });
+    } catch {
+      toast.error('Failed to load all partners');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const fetchPreferences = useCallback(async () => {
     try {
       const response = await axiosInstance.get('/matching/preferences');
@@ -406,16 +423,18 @@ const FindPartnersPage = () => {
 
   // Debounced search
   useEffect(() => {
+    clearTimeout(searchTimerRef.current);
+
     if (!searchQuery.trim()) {
       fetchMatches();
       return;
     }
-    clearTimeout(searchTimerRef.current);
+
     searchTimerRef.current = setTimeout(async () => {
       setIsLoading(true);
       try {
         const response = await axiosInstance.get('/matching/search', {
-          params: { query: searchQuery }
+          params: { query: searchQuery.trim() }
         });
         const data = (response.data.partners || []).map(p => ({
           candidate: p, score: 0, quality: { label: 'Match', color: 'neutral' }
@@ -428,29 +447,35 @@ const FindPartnersPage = () => {
         setIsLoading(false);
       }
     }, 400);
+
     return () => clearTimeout(searchTimerRef.current);
   }, [searchQuery, fetchMatches]);
 
-  const handleAdvancedSearch = async () => {
+  const handleAdvancedSearch = useCallback(async (overrideFilters) => {
+    const active = overrideFilters || filters;
+    const hasFilter = active.nativeLanguage || active.learningLanguage || active.proficiency;
+    if (!hasFilter) {
+      fetchMatches();
+      return;
+    }
     setIsLoading(true);
     try {
       const params = {};
-      if (filters.nativeLanguage) params.nativeLanguage = filters.nativeLanguage;
-      if (filters.learningLanguage) params.learningLanguage = filters.learningLanguage;
-      if (filters.proficiency) params.proficiency = filters.proficiency;
+      if (active.nativeLanguage) params.nativeLanguage = active.nativeLanguage;
+      if (active.learningLanguage) params.learningLanguage = active.learningLanguage;
+      if (active.proficiency) params.proficiency = active.proficiency;
       const response = await axiosInstance.get('/matching/search', { params });
       const data = (response.data.partners || []).map(p => ({
         candidate: p, score: 0, quality: { label: 'Match', color: 'neutral' }
       }));
       setMatches(data);
       setStats({ total: data.length, online: data.filter(m => m.candidate.isOnline).length, highMatch: 0 });
-      setShowFilters(false);
     } catch {
       toast.error('Search failed');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters, fetchMatches]);
 
   const handleSendRequest = async (partnerId) => {
     try {
@@ -463,11 +488,19 @@ const FindPartnersPage = () => {
   };
 
   // Filter + sort displayed matches
-  const displayed = matches.filter(m => {
-    if (activeTab === 'online') return m.candidate.isOnline;
-    if (activeTab === 'top') return m.score >= 70;
-    return true;
-  });
+  const displayed = matches
+    .filter(m => {
+      if (activeTab === 'online') return m.candidate.isOnline;
+      if (activeTab === 'top') return m.score >= 70;
+      return true;
+    })
+    .sort((a, b) => {
+      // Online users first, then by score descending
+      if (b.candidate.isOnline !== a.candidate.isOnline) {
+        return b.candidate.isOnline ? 1 : -1;
+      }
+      return (b.score || 0) - (a.score || 0);
+    });
 
   const TABS = [
     { id: 'all',    label: 'All Partners', count: stats.total },
@@ -550,25 +583,50 @@ const FindPartnersPage = () => {
           {/* Advanced Filters */}
           {showFilters && (
             <div className="mt-4 p-4 bg-base-100/80 backdrop-blur-sm rounded-xl border border-base-300 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <input
-                type="text"
-                className="input input-bordered input-sm"
-                placeholder="Their native language..."
-                value={filters.nativeLanguage}
-                onChange={(e) => setFilters(f => ({ ...f, nativeLanguage: e.target.value }))}
-              />
-              <input
-                type="text"
-                className="input input-bordered input-sm"
-                placeholder="They're learning..."
-                value={filters.learningLanguage}
-                onChange={(e) => setFilters(f => ({ ...f, learningLanguage: e.target.value }))}
-              />
-              <div className="flex gap-2">
+              <div>
+                <label className="text-xs text-base-content/50 mb-1 block">Their native language</label>
                 <select
-                  className="select select-bordered select-sm flex-1"
+                  className="select select-bordered select-sm w-full"
+                  value={filters.nativeLanguage}
+                  onChange={(e) => {
+                    const updated = { ...filters, nativeLanguage: e.target.value };
+                    setFilters(updated);
+                    handleAdvancedSearch(updated);
+                  }}
+                >
+                  <option value="">Any language</option>
+                  {LANGUAGES.map(l => (
+                    <option key={l.value} value={l.value}>{l.flag} {l.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-base-content/50 mb-1 block">They're learning</label>
+                <select
+                  className="select select-bordered select-sm w-full"
+                  value={filters.learningLanguage}
+                  onChange={(e) => {
+                    const updated = { ...filters, learningLanguage: e.target.value };
+                    setFilters(updated);
+                    handleAdvancedSearch(updated);
+                  }}
+                >
+                  <option value="">Any language</option>
+                  {LANGUAGES.map(l => (
+                    <option key={l.value} value={l.value}>{l.flag} {l.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-base-content/50 mb-1 block">Proficiency level</label>
+                <select
+                  className="select select-bordered select-sm w-full"
                   value={filters.proficiency}
-                  onChange={(e) => setFilters(f => ({ ...f, proficiency: e.target.value }))}
+                  onChange={(e) => {
+                    const updated = { ...filters, proficiency: e.target.value };
+                    setFilters(updated);
+                    handleAdvancedSearch(updated);
+                  }}
                 >
                   <option value="">Any level</option>
                   <option value="beginner">Beginner</option>
@@ -578,10 +636,21 @@ const FindPartnersPage = () => {
                   <option value="advanced">Advanced</option>
                   <option value="native">Native</option>
                 </select>
-                <button className="btn btn-primary btn-sm" onClick={handleAdvancedSearch}>
-                  <Search className="w-4 h-4" />
-                </button>
               </div>
+              {(filters.nativeLanguage || filters.learningLanguage || filters.proficiency) && (
+                <div className="sm:col-span-3 flex justify-end">
+                  <button
+                    className="btn btn-ghost btn-xs gap-1"
+                    onClick={() => {
+                      const cleared = { nativeLanguage: '', learningLanguage: '', proficiency: '' };
+                      setFilters(cleared);
+                      fetchMatches();
+                    }}
+                  >
+                    <X className="w-3 h-3" /> Clear filters
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -623,7 +692,7 @@ const FindPartnersPage = () => {
               ? 'No high-match partners yet. Update your profile for better matches.'
               : 'Try adjusting your search or update your profile with more details.'}
           </p>
-          <button className="btn btn-primary btn-sm" onClick={() => { setActiveTab('all'); setSearchQuery(''); fetchMatches(); }}>
+          <button className="btn btn-primary btn-sm" onClick={() => { setActiveTab('all'); setSearchQuery(''); fetchAllUsers(); }}>
             Show All Partners
           </button>
         </div>

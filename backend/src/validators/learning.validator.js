@@ -35,7 +35,8 @@ export const validateAddCustomVocab = [
     .isLength({ max: 100 })
     .withMessage('word must be at most 100 characters'),
   body('translation').notEmpty().withMessage('translation is required'),
-  body('language').notEmpty().withMessage('language is required'),
+  body('sourceLanguage').notEmpty().withMessage('sourceLanguage is required'),
+  body('targetLanguage').notEmpty().withMessage('targetLanguage is required'),
   handleValidationErrors,
 ];
 

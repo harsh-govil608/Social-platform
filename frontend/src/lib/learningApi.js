@@ -115,3 +115,19 @@ export const getLeaderboard = async (period = 'week', limit = 10) => {
   });
   return res.data;
 };
+
+// Word of the Day API
+export const getWordOfDay = async () => {
+  const res = await axiosInstance.get("/word-of-day/today");
+  return res.data;
+};
+
+export const submitWordOfDaySentence = async (userSentence, wordId) => {
+  const res = await axiosInstance.post("/word-of-day/submit", { userSentence, wordId });
+  return res.data;
+};
+
+export const getEnglishWordOfDay = async () => {
+  const res = await axiosInstance.get("/word-of-day/english");
+  return res.data;
+};

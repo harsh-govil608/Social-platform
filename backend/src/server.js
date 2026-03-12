@@ -28,6 +28,7 @@ import spacedRepetitionRoutes from "./routes/spacedRepetition.route.js";
 import matchingRoutes from "./routes/matching.route.js";
 import dailyTaskRoutes from "./routes/dailyTask.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
+import wordOfDayRoutes from "./routes/wordOfDay.route.js";
 
 import gamificationRoutes from "./routes/gamification.route.js";
 import adminRoutes from "./routes/admin.route.js";
@@ -185,6 +186,7 @@ app.use("/api/vocabulary", vocabularyLimiter, spacedRepetitionRoutes);
 app.use("/api/matching", apiLimiter, matchingRoutes);
 app.use("/api/daily-task", dailyTaskLimiter, dailyTaskRoutes);
 app.use("/api/analytics", apiLimiter, analyticsRoutes);
+app.use("/api/word-of-day", apiLimiter, wordOfDayRoutes);
 
 // B2B routes
 app.use("/api/referral", apiLimiter, referralRoutes);

@@ -35,22 +35,15 @@ export async function getPartnerMatches(req, res) {
         const excludeIds = [
             userId,
             ...(user.blockedUsers || []),
-            ...(user.friends || [])
         ];
 
         const candidates = await User.find({
             _id: { $nin: excludeIds },
             isOnboarded: true,
             isActive: true,
-            // At least one matching language
-            $or: [
-                { nativeLanguage: user.learningLanguage },
-                { learningLanguage: user.nativeLanguage },
-                { learningLanguage: user.learningLanguage }
-            ]
         })
         .select('fullName profilePic nativeLanguage learningLanguage languageProficiency location timezone bio interests isOnline availability learningGoals')
-        .limit(100); // Get more than needed to filter
+        .limit(200);
 
         // Calculate scores and find best matches
         const matches = findBestMatches(user, candidates, parseInt(limit));
@@ -217,20 +210,20 @@ export async function searchPartners(req, res) {
     try {
         const userId = req.user._id;
         const {
+            query: nameQuery,
             nativeLanguage,
             learningLanguage,
             proficiency,
             timezone,
-            limit = 20
+            limit = 50
         } = req.query;
 
         // Get user's blocked list
-        const user = await User.findById(userId).select('blockedUsers friends');
+        const user = await User.findById(userId).select('blockedUsers');
 
         const excludeIds = [
             userId,
             ...(user?.blockedUsers || []),
-            ...(user?.friends || [])
         ];
 
         const query = {
@@ -239,6 +232,7 @@ export async function searchPartners(req, res) {
             isActive: true
         };
 
+        if (nameQuery) query.fullName = { $regex: nameQuery, $options: 'i' };
         if (nativeLanguage) query.nativeLanguage = { $regex: nativeLanguage, $options: 'i' };
         if (learningLanguage) query.learningLanguage = { $regex: learningLanguage, $options: 'i' };
         if (proficiency) query.languageProficiency = proficiency;
@@ -246,6 +240,7 @@ export async function searchPartners(req, res) {
 
         const partners = await User.find(query)
             .select('fullName profilePic nativeLanguage learningLanguage languageProficiency location timezone bio interests isOnline')
+            .sort({ isOnline: -1 })
             .limit(parseInt(limit));
 
         res.status(200).json({
