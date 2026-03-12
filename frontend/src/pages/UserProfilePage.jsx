@@ -87,6 +87,17 @@ const UserProfilePage = () => {
     },
   });
 
+  const isFollowing = user?.followers?.some(f => f._id?.toString() === authUser?._id?.toString());
+  const isFriend = user?.friends?.some(f => f._id?.toString() === authUser?._id?.toString());
+  const canSeeVocabulary = isOwnProfile || isFriend;
+
+  // Fetch vocabulary (only when tab is active and user has access)
+  const { data: vocabularyData, isLoading: vocabLoading } = useQuery({
+    queryKey: ['userVocabulary', userId],
+    queryFn: () => axiosInstance.get(`/vocabulary/user/${userId}`).then(r => r.data),
+    enabled: !!userId && activeTab === 'vocabulary' && canSeeVocabulary,
+  });
+
   if (profileLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -104,17 +115,6 @@ const UserProfilePage = () => {
       </div>
     );
   }
-
-  const isFollowing = user.followers?.some(f => f._id?.toString() === authUser?._id?.toString());
-  const isFriend = user.friends?.some(f => f._id?.toString() === authUser?._id?.toString());
-  const canSeeVocabulary = isOwnProfile || isFriend;
-
-  // Fetch vocabulary (only when tab is active and user has access)
-  const { data: vocabularyData, isLoading: vocabLoading } = useQuery({
-    queryKey: ['userVocabulary', userId],
-    queryFn: () => axiosInstance.get(`/vocabulary/user/${userId}`).then(r => r.data),
-    enabled: !!userId && activeTab === 'vocabulary' && canSeeVocabulary,
-  });
 
   return (
     <div className="container mx-auto max-w-6xl p-4">
