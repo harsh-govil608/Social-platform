@@ -42,7 +42,7 @@ const ProgressPage = () => {
     },
   });
 
-  const friends = friendsData?.friends || [];
+  const friends = Array.isArray(friendsData) ? friendsData : (friendsData?.friends || []);
   const streak = authUser?.streak || 0;
   const todayPracticed = activity?.todayPracticed || false;
 
