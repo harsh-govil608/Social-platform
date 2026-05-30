@@ -1,6 +1,8 @@
 import User from '../models/User.js';
 import { findBestMatches, getMatchQuality } from '../lib/matchingAlgorithm.js';
 import { log } from '../lib/logger.js';
+import redis from '../lib/redis.js';
+import { queueMatchRecompute } from '../queues/matching.queue.js';
 
 // Minimum partner interaction duration in seconds (5 minutes)
 const MIN_INTERACTION_DURATION = 5 * 60;
@@ -12,6 +14,23 @@ export async function getPartnerMatches(req, res) {
     try {
         const userId = req.user._id;
         const { limit = 20, offset = 0 } = req.query;
+
+        // Cache-aside: serve from Redis if available
+        const cacheKey = `matches:${userId}`;
+        try {
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                const matches = JSON.parse(cached);
+                return res.status(200).json({
+                    success: true,
+                    matches: matches.slice(parseInt(offset), parseInt(offset) + parseInt(limit)),
+                    total: matches.length,
+                    cached: true,
+                });
+            }
+        } catch (cacheErr) {
+            log.warn('Redis get failed in getPartnerMatches, falling through to DB', { error: cacheErr.message });
+        }
 
         // Get current user with matching preferences
         const user = await User.findById(userId).select(
@@ -46,7 +65,7 @@ export async function getPartnerMatches(req, res) {
         .limit(200);
 
         // Calculate scores and find best matches
-        const matches = findBestMatches(user, candidates, parseInt(limit));
+        const matches = findBestMatches(user, candidates, 50);
 
         // Add quality labels
         const enrichedMatches = matches.map(match => ({
@@ -54,9 +73,16 @@ export async function getPartnerMatches(req, res) {
             quality: getMatchQuality(match.score)
         }));
 
+        // Store full result set in cache for 6 hours
+        try {
+            await redis.set(cacheKey, JSON.stringify(enrichedMatches), 'EX', 6 * 60 * 60);
+        } catch (cacheErr) {
+            log.warn('Redis set failed in getPartnerMatches', { error: cacheErr.message });
+        }
+
         res.status(200).json({
             success: true,
-            matches: enrichedMatches.slice(parseInt(offset)),
+            matches: enrichedMatches.slice(parseInt(offset), parseInt(offset) + parseInt(limit)),
             total: enrichedMatches.length
         });
     } catch (error) {
@@ -95,6 +121,14 @@ export async function updateMatchingPreferences(req, res) {
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Invalidate cached matches and queue async recompute
+        try {
+            await redis.del(`matches:${userId}`);
+            await queueMatchRecompute(userId);
+        } catch (cacheErr) {
+            log.warn('Cache invalidation or recompute queue failed after preference update', { error: cacheErr.message });
         }
 
         res.status(200).json({
