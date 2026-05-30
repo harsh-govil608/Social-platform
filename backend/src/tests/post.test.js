@@ -122,7 +122,7 @@ describe('Post Routes', () => {
       };
       mockChain.populate = jest.fn().mockImplementation(() => {
         populateCalls++;
-        if (populateCalls >= 3) return Promise.resolve(mockPosts);
+        if (populateCalls >= 3) return { lean: jest.fn().mockResolvedValue(mockPosts) };
         return mockChain;
       });
       Post.find = jest.fn().mockReturnValue(mockChain);
