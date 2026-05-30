@@ -1,9 +1,49 @@
+import mongoose from "mongoose";
 import DailyTask from "../models/DailyTask.js";
 import User from "../models/User.js";
 import Vocabulary from "../models/vocabulary.model.js";
 import UserAnalytics from "../models/UserAnalytics.js";
 import { log } from "../lib/logger.js";
 import { VOCABULARY_SEEDS } from "../data/seedChallengesAndVocab.js";
+/**
+ * Runs fn(session) inside a MongoDB transaction when possible.
+ * Falls back to a non-transactional call when the deployment does not
+ * support transactions (e.g. standalone MongoDB without a replica set).
+ *
+ * @param {(session: import('mongoose').ClientSession|null) => Promise<any>} fn
+ */
+async function runWithOptionalTransaction(fn) {
+  let session = null;
+  try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+    const result = await fn(session);
+    await session.commitTransaction();
+    return result;
+  } catch (err) {
+    if (session) {
+      try {
+        await session.abortTransaction();
+      } catch (_) {
+        // ignore abort errors
+      }
+    }
+    // Retry without a transaction when the server does not support them
+    if (
+      err.message?.includes('Transaction') ||
+      err.codeName === 'CommandNotSupported' ||
+      err.codeName === 'IllegalOperation'
+    ) {
+      log.warn(
+        'MongoDB transactions not supported (no replica set) — falling back to non-transactional writes'
+      );
+      return await fn(null);
+    }
+    throw err;
+  } finally {
+    if (session) session.endSession();
+  }
+}
 
 // Get today's task for the authenticated user
 export const getTodayTask = async (req, res) => {
@@ -214,7 +254,9 @@ export const updateStreakAndComplete = async (req, res) => {
       });
     }
 
-    // Update user's streak
+    // Update user streak and mark task as completed atomically.
+    // Uses a MongoDB transaction when a replica set is available;
+    // falls back to plain writes on standalone deployments.
     const user = await User.findById(userId);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -227,28 +269,30 @@ export const updateStreakAndComplete = async (req, res) => {
       ? new Date(lastPractice.getFullYear(), lastPractice.getMonth(), lastPractice.getDate()).getTime()
       : null;
 
-    if (!lastPracticeDay || lastPracticeDay < todayMs) {
-      const yesterdayMs = todayMs - 24 * 60 * 60 * 1000;
-      if (lastPracticeDay === yesterdayMs) {
-        user.streak = (user.streak || 0) + 1;
-      } else {
-        user.streak = 1; // Reset streak (first time or gap)
+    await runWithOptionalTransaction(async (session) => {
+      if (!lastPracticeDay || lastPracticeDay < todayMs) {
+        const yesterdayMs = todayMs - 24 * 60 * 60 * 1000;
+        if (lastPracticeDay === yesterdayMs) {
+          user.streak = (user.streak || 0) + 1;
+        } else {
+          user.streak = 1; // Reset streak (first time or gap)
+        }
+
+        if (user.streak > (user.bestStreak || 0)) {
+          user.bestStreak = user.streak;
+        }
+
+        user.lastPracticeDate = new Date();
+        await user.save(session ? { session } : undefined);
       }
 
-      if (user.streak > (user.bestStreak || 0)) {
-        user.bestStreak = user.streak;
-      }
+      // Mark task as completed
+      todayTask.completedSteps.streakUpdated = true;
+      todayTask.status = "completed";
+      todayTask.streakContribution = true;
 
-      user.lastPracticeDate = new Date();
-      await user.save();
-    }
-
-    // Mark task as completed
-    todayTask.completedSteps.streakUpdated = true;
-    todayTask.status = "completed";
-    todayTask.streakContribution = true;
-
-    await todayTask.save();
+      await todayTask.save(session ? { session } : undefined);
+    });
 
     // Update analytics
     try {
