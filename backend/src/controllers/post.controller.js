@@ -1,9 +1,8 @@
 import Post from "../models/Post.js";
 import User from "../models/User.js";
-import Notification from "../models/Notification.js";
 import { deleteUploadedFiles, generateVideoThumbnail } from "../middleware/upload.middleware.js";
 import { log } from "../lib/logger.js";
-import { emitNotification } from "../lib/socketService.js";
+import { queueNotification } from "../queues/notification.queue.js";
 
 // Create a new post with media uploads
 export async function createPost(req, res) {
@@ -198,15 +197,14 @@ export async function toggleLikePost(req, res) {
 
             // Create notification for post owner (if not self-like)
             if (post.author.toString() !== userId.toString()) {
-                const likeNotif = await Notification.create({
+                await queueNotification({
                     recipient: post.author,
                     sender: userId,
                     type: 'post_like',
-                    entityId: postId,
+                    entityId: post._id,
                     entityModel: 'Post',
-                    message: `${req.user.fullName} liked your post`
+                    message: `${req.user.fullName} liked your post`,
                 });
-                emitNotification(post.author, likeNotif);
             }
         }
 
@@ -254,15 +252,14 @@ export async function commentOnPost(req, res) {
 
         // Create notification for post owner (if not self-comment)
         if (post.author.toString() !== userId.toString()) {
-            const commentNotif = await Notification.create({
+            await queueNotification({
                 recipient: post.author,
                 sender: userId,
                 type: 'post_comment',
-                entityId: postId,
+                entityId: post._id,
                 entityModel: 'Post',
-                message: `${req.user.fullName} commented on your post`
+                message: `${req.user.fullName} commented on your post`,
             });
-            emitNotification(post.author, commentNotif);
         }
 
         const updatedPost = await Post.findById(postId)
@@ -356,15 +353,14 @@ export async function sharePost(req, res) {
 
         // Create notification for post owner (if not self-share)
         if (post.author.toString() !== userId.toString()) {
-            const shareNotif = await Notification.create({
+            await queueNotification({
                 recipient: post.author,
                 sender: userId,
                 type: 'post_share',
-                entityId: postId,
+                entityId: post._id,
                 entityModel: 'Post',
-                message: `${req.user.fullName} shared your post`
+                message: `${req.user.fullName} shared your post`,
             });
-            emitNotification(post.author, shareNotif);
         }
 
         res.status(200).json({ success: true, message: "Post shared successfully" });

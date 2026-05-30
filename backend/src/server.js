@@ -6,6 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 
 // Existing routes
 import authRoutes from "./routes/auth.route.js";
@@ -65,6 +67,8 @@ import { performanceMonitoring, requestIdMiddleware, memoryMonitoring } from "./
 import { log } from "./lib/logger.js";
 import { initSocketService } from "./lib/socketService.js";
 import { startWikiWorker, closeWikiQueue } from "./queues/wiki.queue.js";
+import { startNotificationWorker, closeNotificationQueue } from "./queues/notification.queue.js";
+import { startMatchingWorker, closeMatchingQueue } from "./queues/matching.queue.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,6 +98,24 @@ const io = new Server(server, {
         credentials: true
     }
 });
+
+// Wire Redis adapter for multi-instance Socket.io support
+let redisPubClient = null;
+let redisSubClient = null;
+if (process.env.REDIS_URL && !process.env.REDIS_URL.includes('your_upstash')) {
+  try {
+    redisPubClient = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
+    redisSubClient = redisPubClient.duplicate();
+    io.adapter(createAdapter(redisPubClient, redisSubClient));
+    log.info('Socket.io Redis adapter enabled — multi-instance ready');
+    redisPubClient.on('error', (err) => log.error('Socket.io Redis pub error', { error: err.message }));
+    redisSubClient.on('error', (err) => log.error('Socket.io Redis sub error', { error: err.message }));
+  } catch (err) {
+    log.warn('Socket.io Redis adapter unavailable, using in-memory adapter', { error: err.message });
+  }
+} else {
+  log.info('Socket.io using in-memory adapter (set REDIS_URL for multi-instance support)');
+}
 
 // Sentry request handler (must be first)
 app.use(sentryRequestHandler());
@@ -278,6 +300,14 @@ server.listen(PORT, async () => {
     startWikiWorker();
     log.info('Wiki queue worker started');
 
+    // Start BullMQ notification worker
+    startNotificationWorker();
+    log.info('Notification queue worker started');
+
+    // Start BullMQ matching worker
+    startMatchingWorker();
+    log.info('Matching queue worker started');
+
     log.info('API ready', {
         endpoints: ['/api/auth', '/api/users', '/api/chat', '/api/posts', '/api/notifications',
             '/api/daily-task', '/api/learning', '/api/ai-tutor', '/api/conversation-practice',
@@ -291,8 +321,14 @@ const shutdown = async (signal) => {
         log.info('HTTP server closed');
         await closeWikiQueue();
         log.info('Wiki queue closed');
+        await closeNotificationQueue();
+        log.info('Notification queue closed');
+        await closeMatchingQueue();
+        log.info('Matching queue closed');
         await mongoose.connection.close(false);
         log.info('MongoDB connection closed');
+        redisPubClient?.disconnect();
+        redisSubClient?.disconnect();
         process.exit(0);
     });
     setTimeout(() => {

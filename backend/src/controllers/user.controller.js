@@ -1,8 +1,7 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
-import Notification from "../models/Notification.js";
 import { log } from "../lib/logger.js";
-import { emitNotification } from "../lib/socketService.js";
+import { queueNotification } from "../queues/notification.queue.js";
 
 export async function getRecommendedUsers(req, res) {
   try {
@@ -73,15 +72,14 @@ export async function sendFriendRequest(req, res) {
     });
 
     // Create notification for the recipient
-    const notification = await Notification.create({
+    await queueNotification({
       recipient: recipientId,
       sender: myId,
       type: 'friend_request',
       entityId: friendRequest._id,
       entityModel: 'FriendRequest',
-      message: `${req.user.fullName} sent you a friend request`
+      message: `${req.user.fullName} sent you a friend request`,
     });
-    emitNotification(recipientId, notification);
 
     res.status(201).json(friendRequest);
   } catch (error) {
@@ -120,15 +118,14 @@ export async function acceptFriendRequest(req, res) {
     });
 
     // Create notification for the original sender
-    const acceptNotification = await Notification.create({
+    await queueNotification({
       recipient: senderId,
       sender: recipientId,
       type: 'friend_accept',
       entityId: friendRequest._id,
       entityModel: 'FriendRequest',
-      message: `${req.user.fullName} accepted your friend request`
+      message: `${req.user.fullName} accepted your friend request`,
     });
-    emitNotification(senderId, acceptNotification);
 
     res.status(200).json({ message: "Friend request accepted" });
   } catch (error) {
@@ -314,15 +311,14 @@ export async function followUser(req, res) {
     });
 
     // Create notification
-    const followNotification = await Notification.create({
+    await queueNotification({
       recipient: userId,
       sender: followerId,
       type: 'follow',
       entityId: followerId,
       entityModel: 'User',
-      message: `${req.user.fullName} started following you`
+      message: `${req.user.fullName} started following you`,
     });
-    emitNotification(userId, followNotification);
 
     res.status(200).json({ success: true, message: "User followed successfully" });
   } catch (error) {
