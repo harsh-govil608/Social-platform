@@ -7,23 +7,23 @@ export async function signup(req,res){
     try{
         if(!email || !password || !fullName){
             return res.status(400).json({
-                message: "All fields are required"
+                success: false, message: "All fields are required"
             });
         }
         if(password.length<6){
             return res.status(400).json({
-                message: "Password must be atleast 6 character"
+                success: false, message: "Password must be atleast 6 character"
             });
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if(!emailRegex.test(email)){
             return res.status(400).json({
-                message: "Invalid email format"
+                success: false, message: "Invalid email format"
             });
         }
         const existingUser= await User.findOne({email});
         if(existingUser){
-            return res.status(400).json({ message: "Email already exists, please use a different one"});
+            return res.status(400).json({ success: false, message: "Email already exists, please use a different one"});
         }
         const idx=Math.floor(Math.random()*100)+1;
         const randomAvatar=`https://avatar.iran.liara.run/public/${idx}.png`;
@@ -61,7 +61,7 @@ export async function signup(req,res){
     } catch(error){
         log.error("Error in signup", { error: error.message });
         res.status(500).json({
-            message: "Internal server error"
+            success: false, message: "Internal server error"
         });
     }
 }
@@ -70,15 +70,15 @@ export async function login(req,res){
     const {email, password}=req.body;
     if(!email || !password){
         return res.status(400).json({
-            message: "All fields are required"
+            success: false, message: "All fields are required"
         });
     }
     const user = await User.findOne({email});
     if(!user){
-        return res.status(401).json({message: "Invalid email or password"})
+        return res.status(401).json({ success: false, message: "Invalid email or password"})
     }
     const isPasswordCorrect= await user.matchPassword(password);
-    if(!isPasswordCorrect) return res.status(401).json({ message: "Invalid email or password"});
+    if(!isPasswordCorrect) return res.status(401).json({ success: false, message: "Invalid email or password"});
     const token= jwt.sign({ userId: user._id},process.env.JWT_SECRET_KEY,{
         expiresIn: "7d",
     });
@@ -93,7 +93,7 @@ export async function login(req,res){
     });
 }catch(error){
     log.error("Error in login controller", { error: error.message });
-    res.status(500).json({ message: "Internal server error "});
+    res.status(500).json({ success: false, message: "Internal server error "});
 }
 }
 
@@ -110,7 +110,7 @@ export async function onboard(req,res){
     try{
         const userId = req.user._id
         const currentUser = await User.findById(userId);
-        if (!currentUser) return res.status(404).json({message: "User not found"});
+        if (!currentUser) return res.status(404).json({ success: false, message: "User not found"});
 
         // If user is already onboarded, this is a profile update
         if (currentUser.isOnboarded) {
@@ -129,7 +129,7 @@ export async function onboard(req,res){
         // First-time onboarding flow
         const {learningLanguage, proficiencyLevel, dailyAvailability} = req.body
         if(!learningLanguage || !proficiencyLevel || !dailyAvailability){
-            return res.status(400).json({message: "All fields are required",
+            return res.status(400).json({ success: false, message: "All fields are required",
                 missingFields: [
                     !learningLanguage && "learningLanguage",
                     !proficiencyLevel && "proficiencyLevel",
@@ -143,7 +143,7 @@ export async function onboard(req,res){
             dailyAvailability,
             isOnboarded: true,
         }, {new: true})
-        if(!updatedUser) return res.status(404).json({message: "User not found"});
+        if(!updatedUser) return res.status(404).json({ success: false, message: "User not found"});
         try{
         await upsertStreamUser({
             id: updatedUser._id.toString(),
@@ -158,7 +158,7 @@ export async function onboard(req,res){
 
     } catch(error){
         log.error("Onboarding error", { error: error.message });
-        res.status(500).json({ message: "Internal server error"});
+        res.status(500).json({ success: false, message: "Internal server error"});
 
     }
 }
