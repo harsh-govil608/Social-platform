@@ -19,7 +19,7 @@ const router= express.Router();
 
 /**
  * @swagger
- * /auth/signup:
+ * /api/auth/signup:
  *   post:
  *     summary: Register a new user
  *     tags: [Authentication]
@@ -59,7 +59,7 @@ router.post("/signup", signupLimiter, validateSignup, handleValidationErrors, si
 
 /**
  * @swagger
- * /auth/login:
+ * /api/auth/login:
  *   post:
  *     summary: Login user
  *     tags: [Authentication]
@@ -89,7 +89,7 @@ router.post("/login", loginLimiter, validateLogin, handleValidationErrors, login
 
 /**
  * @swagger
- * /auth/logout:
+ * /api/auth/logout:
  *   post:
  *     summary: Logout user
  *     tags: [Authentication]
@@ -103,7 +103,7 @@ router.post("/logout", logout);
 
 /**
  * @swagger
- * /auth/onboarding:
+ * /api/auth/onboarding:
  *   post:
  *     summary: Complete user onboarding
  *     tags: [Authentication]
@@ -128,7 +128,7 @@ router.post("/onboarding", protectRoute, onboard);
 
 /**
  * @swagger
- * /auth/me:
+ * /api/auth/me:
  *   get:
  *     summary: Get current user
  *     tags: [Authentication]
@@ -150,7 +150,7 @@ router.get("/me", protectRoute, (req,res)=>{
 
 /**
  * @swagger
- * /auth/forgot-password:
+ * /api/auth/forgot-password:
  *   post:
  *     summary: Request password reset email
  *     tags: [Authentication]
@@ -176,7 +176,7 @@ router.post("/forgot-password", requestPasswordReset);
 
 /**
  * @swagger
- * /auth/verify-reset-token/{token}:
+ * /api/auth/verify-reset-token/{token}:
  *   get:
  *     summary: Verify password reset token is valid
  *     tags: [Authentication]
@@ -196,7 +196,7 @@ router.get("/verify-reset-token/:token", verifyResetToken);
 
 /**
  * @swagger
- * /auth/reset-password:
+ * /api/auth/reset-password:
  *   post:
  *     summary: Reset password using token
  *     tags: [Authentication]
@@ -226,7 +226,7 @@ router.post("/reset-password", resetPassword);
 // Email Verification Routes
 /**
  * @swagger
- * /auth/send-verification:
+ * /api/auth/send-verification:
  *   post:
  *     summary: Send email verification link (authenticated)
  *     tags: [Authentication]
@@ -242,7 +242,7 @@ router.post("/send-verification", protectRoute, sendVerificationEmail);
 
 /**
  * @swagger
- * /auth/verify-email/{token}:
+ * /api/auth/verify-email/{token}:
  *   get:
  *     summary: Verify email with token
  *     tags: [Authentication]
@@ -262,7 +262,7 @@ router.get("/verify-email/:token", verifyEmail);
 
 /**
  * @swagger
- * /auth/resend-verification:
+ * /api/auth/resend-verification:
  *   post:
  *     summary: Resend verification email (public)
  *     tags: [Authentication]
@@ -288,7 +288,7 @@ router.post("/resend-verification", resendVerificationEmail);
 
 /**
  * @swagger
- * /auth/verification-status:
+ * /api/auth/verification-status:
  *   get:
  *     summary: Check email verification status
  *     tags: [Authentication]

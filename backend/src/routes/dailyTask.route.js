@@ -15,6 +15,44 @@ const router = express.Router();
 // All routes require authentication
 router.use(protectRoute);
 
+/**
+ * @swagger
+ * /api/daily-task/today:
+ *   get:
+ *     summary: Get today's daily task for the authenticated user
+ *     tags: [Daily Task]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Today's task returned
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 task:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                       enum: [pending, in_progress, completed]
+ *                     steps:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     xpReward:
+ *                       type: integer
+ *                     date:
+ *                       type: string
+ *                       format: date
+ *       401:
+ *         description: Not authenticated
+ */
 // Get today's task
 router.get("/today", getTodayTask);
 
