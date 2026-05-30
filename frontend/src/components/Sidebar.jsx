@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router';
-import { CalendarCheck, MessageCircle, Users, User, Zap, Flame, Newspaper, Trophy, Star, Map, CreditCard, BookOpen } from 'lucide-react';
+import { CalendarCheck, MessageCircle, Users, User, Zap, Flame, Newspaper, Trophy, Star, Map, CreditCard, BookOpen, BookMarked } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import useAuthUser from '../hooks/useAuthUser';
 import { getEnglishWordOfDay } from '../lib/learningApi';
@@ -25,6 +25,7 @@ const Sidebar = () => {
         { path: '/leaderboard', icon: Trophy, label: 'Leaderboard', description: 'Top learners' },
         { path: '/achievements', icon: Star, label: 'Achievements', description: 'Badges & XP' },
         { path: '/profile', icon: User, label: 'Profile', description: 'Your profile' },
+        { path: '/wiki', icon: BookMarked, label: 'Wiki', description: 'AI knowledge base' },
         { path: '/pricing', icon: CreditCard, label: 'Upgrade', description: 'Go premium' },
     ];
 

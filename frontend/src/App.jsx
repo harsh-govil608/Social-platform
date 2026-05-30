@@ -40,6 +40,8 @@ const PracticePage = lazy(() => import("./pages/PracticePage.jsx"));
 const ProgressPage = lazy(() => import("./pages/ProgressPage.jsx"));
 const DailyTaskPage = lazy(() => import("./pages/DailyTaskPage.jsx"));
 const WordOfDayPage = lazy(() => import("./pages/WordOfDayPage.jsx"));
+const WikiPage = lazy(() => import("./pages/WikiPage.jsx"));
+const WikiArticlePage = lazy(() => import("./pages/WikiArticlePage.jsx"));
 
 // Helper: protect routes that require auth + onboarding
 const Protected = ({ children, isAuthenticated, isOnboarded }) => {
@@ -264,6 +266,22 @@ const App = () => {
               element={
                 <Protected isAuthenticated={isAuthenticated} isOnboarded={isOnboarded}>
                   <Layout showSidebar={true}><WordOfDayPage /></Layout>
+                </Protected>
+              }
+            />
+            <Route
+              path="/wiki"
+              element={
+                <Protected isAuthenticated={isAuthenticated} isOnboarded={isOnboarded}>
+                  <Layout showSidebar={true}><WikiPage /></Layout>
+                </Protected>
+              }
+            />
+            <Route
+              path="/wiki/:slug"
+              element={
+                <Protected isAuthenticated={isAuthenticated} isOnboarded={isOnboarded}>
+                  <Layout showSidebar={true}><WikiArticlePage /></Layout>
                 </Protected>
               }
             />
