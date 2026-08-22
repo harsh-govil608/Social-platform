@@ -242,7 +242,18 @@ app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({ message: 'API route not found' });
     }
-    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+    res.sendFile(path.join(frontendBuildPath, 'index.html'), (err) => {
+        if (err) {
+            // No bundled frontend on this instance (e.g. backend-only deploy) — this is a pure API server.
+            res.status(404).json({ message: 'Not found' });
+        }
+    });
+});
+
+// Final error handler — ensures unhandled errors (e.g. CORS rejection) return JSON, not Express's default HTML page
+app.use((err, req, res, next) => {
+    log.error('Unhandled error', { error: err.message, path: req.path, stack: err.stack });
+    res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
 });
 
 // Initialize socket service so controllers can emit notifications
