@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Backend tests and linting
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint --if-present
+
+      - name: Run tests
+        run: npm test --if-present
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://localhost:27017/test_db
+          JWT_SECRET_KEY: test-secret-key-for-ci
+          STREAM_API_KEY: test-stream-key
+          STREAM_API_SECRET: test-stream-secret
+
+      - name: Check for security vulnerabilities
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # Frontend tests, linting, and build
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test --if-present
+        env:
+          CI: true
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: http://localhost:5001/api
+          VITE_STREAM_API_KEY: test-stream-key
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist
+          retention-days: 7
+
+      - name: Check for security vulnerabilities
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # Type checking (if TypeScript is used)
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run type check
+        run: npm run typecheck --if-present
+        working-directory: frontend
+        continue-on-error: true
+
+  # Code quality checks
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for large files
+        run: |
+          find . -type f -size +5M ! -path './.git/*' ! -path './node_modules/*' | head -20 > large_files.txt
+          if [ -s large_files.txt ]; then
+            echo "Warning: Large files detected:"
+            cat large_files.txt
+          fi
+
+      - name: Check for secrets
+        run: |
+          # Basic check for common secret patterns
+          if grep -r --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" \
+            -E "(api[_-]?key|secret[_-]?key|password)\s*[:=]\s*['\"][^'\"]+['\"]" \
+            --exclude-dir=node_modules --exclude-dir=.git . 2>/dev/null; then
+            echo "Warning: Potential hardcoded secrets detected. Please review."
+          fi
+        continue-on-error: true
+
+      - name: Check for TODO/FIXME comments
+        run: |
+          echo "=== TODOs and FIXMEs in codebase ==="
+          grep -r --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" \
+            -n "TODO\|FIXME\|XXX\|HACK" \
+            --exclude-dir=node_modules --exclude-dir=.git . 2>/dev/null | head -50 || true
+
+  # Final status check
+  ci-success:
+    name: CI Success
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.backend.result }}" == "success" && "${{ needs.frontend.result }}" == "success" ]]; then
+            echo "All required CI checks passed!"
+            exit 0
+          else
+            echo "Some CI checks failed:"
+            echo "  Backend: ${{ needs.backend.result }}"
+            echo "  Frontend: ${{ needs.frontend.result }}"
+            exit 1
+          fi

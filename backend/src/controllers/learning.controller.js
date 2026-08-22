@@ -1,0 +1,679 @@
+import DailyChallenge from "../models/dailyChallenge.model.js";
+import Vocabulary from "../models/vocabulary.model.js";
+import LearningVideo from "../models/learningVideo.model.js";
+import LearningProgress from "../models/LearningProgress.js";
+import User from "../models/User.js";
+import UserActivity from "../models/UserActivity.js";
+import { CHALLENGE_SEEDS, VOCABULARY_SEEDS, VIDEO_SEEDS } from "../data/seedChallengesAndVocab.js";
+import { log } from "../lib/logger.js";
+
+// Helper function to update XP and Coins in both LearningProgress and UserActivity
+const updateUserXPAndCoins = async (userId, xpAmount, coinsAmount = 0) => {
+  try {
+    if (!userId) {
+      log.warn('updateUserXPAndCoins called with null userId, skipping');
+      return null;
+    }
+
+    // Update or create UserActivity
+    let userActivity = await UserActivity.findOne({ user: userId });
+
+    if (!userActivity) {
+      userActivity = await UserActivity.create({
+        user: userId,
+        gamification: {
+          level: 1,
+          xp: xpAmount,
+          coins: coinsAmount
+        },
+        metrics: {},
+        streaks: {}
+      });
+    } else {
+      // Add XP and Coins to UserActivity
+      userActivity.gamification.xp = (userActivity.gamification.xp || 0) + xpAmount;
+      userActivity.gamification.coins = (userActivity.gamification.coins || 0) + coinsAmount;
+
+      // Update level based on XP (1000 XP per level)
+      const newLevel = Math.floor(userActivity.gamification.xp / 1000) + 1;
+      if (newLevel > userActivity.gamification.level) {
+        userActivity.gamification.level = newLevel;
+      }
+
+      await userActivity.save();
+    }
+
+    return userActivity;
+  } catch (error) {
+    log.error('Error updating user XP and Coins', { error: error.message });
+    // Don't throw - XP/coins update is non-critical
+    return null;
+  }
+};
+
+// Get or create learning progress for user
+export const getLearningProgress = async (req, res) => {
+  try {
+    // Return mock progress for unauthenticated users
+    if (!req.user) {
+      return res.status(200).json({
+        language: "spanish",
+        level: "beginner",
+        xp: 0,
+        streak: 0,
+        vocabulary: { mastered: [], learning: [], totalWords: 0 },
+        dailyChallenges: { completed: [] },
+        videos: { watched: [] }
+      });
+    }
+    
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    
+    let progress = await LearningProgress.findOne({ user: userId });
+
+    if (!progress) {
+      progress = await LearningProgress.create({
+        user: userId,
+        totalXP: 0,
+        currentLevel: 1,
+        currentStreak: 0,
+      });
+    }
+
+    // Update streak if needed
+    if (typeof progress.updateStreak === 'function') {
+      progress.updateStreak();
+      await progress.save();
+    }
+    
+    res.status(200).json(progress);
+  } catch (error) {
+    log.error("Error fetching learning progress", { error: error.message });
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get daily challenges
+export const getDailyChallenges = async (req, res) => {
+  try {
+    // For testing without authentication
+    let language = "spanish";
+    let level = "beginner";
+    
+    if (req.user) {
+      const userId = req.user._id;
+      const user = await User.findById(userId);
+      language = user.learningLanguage || "spanish";
+      
+      log.debug("Fetching challenges for user", { userId, language });
+
+      // Get user's progress to determine level
+      const progress = await LearningProgress.findOne({ user: userId });
+      level = progress?.level || "beginner";
+    } else {
+      log.debug("Fetching challenges without authentication - using defaults");
+    }
+
+    log.debug("User level", { level });
+    
+    // Get ALL challenges for the language to show variety
+    let allChallenges = await DailyChallenge.find({
+      language,
+      isActive: true
+    });
+
+    // Auto-seed if empty
+    if (allChallenges.length === 0) {
+      const seedData = CHALLENGE_SEEDS[language] || CHALLENGE_SEEDS["english"];
+      if (seedData) {
+        for (const challenge of seedData) {
+          try { await DailyChallenge.create({ ...challenge, language }); } catch (e) { /* skip duplicates */ }
+        }
+        allChallenges = await DailyChallenge.find({ language, isActive: true });
+      }
+    }
+
+    log.debug("Total challenges in DB", { language, count: allChallenges.length });
+    
+    // Return all available challenges (frontend will handle display)
+    const challenges = allChallenges;
+    
+    log.debug("Returning challenges", { count: challenges.length });
+    
+    if (!req.user) {
+      // Return challenges without completion status for unauthenticated users
+      const challengesData = challenges.map(challenge => ({
+        ...challenge.toObject(),
+        isCompleted: false
+      }));
+      return res.status(200).json(challengesData);
+    }
+    
+    // Check which challenges are already completed today
+    const progress = await LearningProgress.findOne({ user: req.user._id });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const completedToday = (progress?.dailyChallenges || []).filter(c => {
+      const completedDate = new Date(c.completedAt || c.date);
+      completedDate.setHours(0, 0, 0, 0);
+      return completedDate.getTime() === today.getTime();
+    });
+
+    const challengesWithStatus = challenges.map(challenge => ({
+      ...challenge.toObject(),
+      isCompleted: completedToday.some(c => c.challengeId === challenge._id.toString())
+    }));
+    
+    res.status(200).json(challengesWithStatus);
+  } catch (error) {
+    log.error("Error fetching daily challenges:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Complete a daily challenge
+export const completeDailyChallenge = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { challengeId, score, timeSpent } = req.body;
+
+    let progress = await LearningProgress.findOne({ user: userId });
+    if (!progress) {
+      progress = await LearningProgress.create({
+        user: userId,
+        totalXP: 0,
+        currentLevel: 1,
+      });
+    }
+
+    const challenge = await DailyChallenge.findById(challengeId);
+    if (!challenge) {
+      return res.status(404).json({ message: "Challenge not found" });
+    }
+
+    // Calculate XP and Coins earned based on score
+    const xpEarned = Math.floor((score / 100) * challenge.xpReward);
+    const coinsEarned = Math.floor((score / 100) * (challenge.coins || Math.round(challenge.xpReward / 5)));
+
+    // Add to completed challenges (flat array in LearningProgress schema)
+    if (!progress.dailyChallenges) {
+      progress.dailyChallenges = [];
+    }
+
+    progress.dailyChallenges.push({
+      challengeId,
+      title: challenge.title,
+      completed: true,
+      xpEarned,
+      completedAt: new Date(),
+      date: new Date(),
+    });
+
+    // Update XP
+    const xpResult = progress.addXP(xpEarned);
+
+    // Update streak
+    progress.updateStreak();
+
+    await progress.save();
+
+    // IMPORTANT: Also update UserActivity XP and Coins for leaderboard/dashboard
+    await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
+
+    res.status(200).json({
+      xpEarned,
+      coinsEarned,
+      totalXP: progress.totalXP || 0,
+      newTotalXP: progress.totalXP || 0,
+      currentLevel: progress.currentLevel || 1,
+      newLevel: progress.currentLevel || 1,
+      streak: progress.currentStreak || 0,
+      newStreak: progress.currentStreak || 0,
+    });
+  } catch (error) {
+    log.error("Error completing challenge:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get daily vocabulary words
+export const getDailyVocabulary = async (req, res) => {
+  try {
+    let language = "spanish";
+    let level = "beginner";
+    
+    if (req.user) {
+      const userId = req.user._id;
+      const user = await User.findById(userId);
+      language = user.learningLanguage || "spanish";
+      
+      const progress = await LearningProgress.findOne({ user: userId });
+      level = progress?.level || "beginner";
+    }
+    
+    // Get 10 random words for the day
+    let words = await Vocabulary.getDailyWords(language, level, [], 10);
+
+    // Auto-seed if empty
+    if (words.length === 0) {
+      const seedData = VOCABULARY_SEEDS[language] || VOCABULARY_SEEDS["english"];
+      if (seedData) {
+        for (const word of seedData) {
+          try { await Vocabulary.create({ ...word, language }); } catch (e) { /* skip duplicates */ }
+        }
+        words = await Vocabulary.getDailyWords(language, level, [], 10);
+      }
+    }
+
+    res.status(200).json(words);
+  } catch (error) {
+    log.error("Error fetching daily vocabulary:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Master vocabulary words
+export const masterVocabulary = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { words, timeSpent, accuracy } = req.body;
+    
+    let progress = await LearningProgress.findOne({ user: userId });
+    if (!progress) {
+      progress = await LearningProgress.create({
+        user: userId,
+        totalXP: 0,
+        currentLevel: 1,
+      });
+    }
+
+    // Add mastered words to vocabulary array
+    const masteredWords = (words || []).filter(w => w.mastered).map(w => ({
+      word: w.word,
+      translation: w.translation,
+      language: w.language || "",
+      learnedAt: new Date(),
+      reviewCount: 1,
+      lastReviewed: new Date(),
+    }));
+
+    if (!progress.vocabulary) {
+      progress.vocabulary = [];
+    }
+    progress.vocabulary.push(...masteredWords);
+    progress.wordsLearned = (progress.wordsLearned || 0) + masteredWords.length;
+
+    // Calculate XP and Coins based on performance
+    const acc = accuracy || 100;
+    const xpEarned = Math.floor(masteredWords.length * 10 * (acc / 100));
+    const coinsEarned = Math.floor(masteredWords.length * 2 * (acc / 100));
+    progress.addXP(xpEarned);
+
+    await progress.save();
+
+    // Also update UserActivity XP and Coins for leaderboard/dashboard
+    await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
+
+    res.status(200).json({
+      masteredCount: masteredWords.length,
+      xpEarned,
+      coinsEarned,
+      newTotalXP: progress.totalXP || 0,
+    });
+  } catch (error) {
+    log.error("Error mastering vocabulary:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get learning videos
+export const getLearningVideos = async (req, res) => {
+  try {
+    let language = "spanish";
+    let level = "beginner";
+    let isPremium = false;
+    let progress = null;
+    
+    if (req.user) {
+      const userId = req.user._id;
+      const user = await User.findById(userId);
+      language = user.learningLanguage || "spanish";
+      
+      progress = await LearningProgress.findOne({ user: userId });
+      level = progress?.level || "beginner";
+      
+      // Check if user is premium (you can implement your own logic)
+      isPremium = user.isPremium || false;
+    }
+    
+    const { category } = req.query;
+    const categories = category ? [category] : [];
+    let videos = await LearningVideo.getVideosForUser(language, level, isPremium, categories);
+
+    // Auto-seed if empty
+    if (videos.length === 0) {
+      const seedData = VIDEO_SEEDS[language] || VIDEO_SEEDS["english"];
+      if (seedData) {
+        for (const video of seedData) {
+          try { await LearningVideo.create({ ...video, language }); } catch (e) { /* skip duplicates */ }
+        }
+        videos = await LearningVideo.getVideosForUser(language, level, isPremium, categories);
+      }
+    }
+
+    // Add watched status
+    const videosWithStatus = videos.map(video => {
+      const watched = progress?.videos?.watched?.find(
+        w => w.videoId === video._id.toString()
+      );
+      return {
+        ...video.toObject(),
+        hasWatched: !!watched,
+        watchProgress: watched?.progress || 0
+      };
+    });
+    
+    res.status(200).json(videosWithStatus);
+  } catch (error) {
+    log.error("Error fetching learning videos:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Complete video watching
+export const completeVideo = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { videoId, watchProgress, completed } = req.body;
+
+    const video = await LearningVideo.findById(videoId);
+    if (!video) {
+      return res.status(404).json({ message: "Video not found" });
+    }
+
+    // Award XP and Coins if completed
+    let xpEarned = 0;
+    let coinsEarned = 0;
+    if (completed) {
+      xpEarned = video.xpReward || 100;
+      coinsEarned = video.coins || Math.round(xpEarned / 5);
+
+      // Update LearningProgress XP
+      let progress = await LearningProgress.findOne({ user: userId });
+      if (!progress) {
+        progress = await LearningProgress.create({
+          user: userId,
+          totalXP: 0,
+          currentLevel: 1,
+        });
+      }
+      progress.addXP(xpEarned);
+      await progress.save();
+
+      // Also update UserActivity XP and Coins for leaderboard/dashboard
+      await updateUserXPAndCoins(userId, xpEarned, coinsEarned);
+    }
+
+    // Update video view count
+    await video.incrementViewCount();
+
+    res.status(200).json({
+      xpEarned,
+      coinsEarned,
+      newTotalXP: 0,
+    });
+  } catch (error) {
+    log.error("Error completing video:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get weekly stats
+export const getWeeklyStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const progress = await LearningProgress.findOne({ user: userId });
+
+    if (!progress) {
+      return res.status(200).json({
+        days: [],
+        totalXP: 0,
+        totalMinutes: 0,
+        totalWords: 0,
+        weeklyGoal: 500,
+        goalProgress: 0
+      });
+    }
+
+    // Compute weekly challenge completions from the flat dailyChallenges array
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+
+    const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days = [];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      const dStart = new Date(d); dStart.setHours(0, 0, 0, 0);
+      const dEnd   = new Date(d); dEnd.setHours(23, 59, 59, 999);
+
+      const dayCompletions = (progress.dailyChallenges || []).filter(c => {
+        const completed = new Date(c.completedAt || c.date);
+        return completed >= dStart && completed <= dEnd;
+      });
+
+      const xpEarned = dayCompletions.reduce((sum, c) => sum + (c.xpEarned || 0), 0);
+      days.push({ day: DAYS[d.getDay()], date: d.toISOString().split('T')[0], xpEarned, minutesLearned: 0, wordsLearned: 0 });
+    }
+
+    const totalXP = days.reduce((sum, d) => sum + d.xpEarned, 0);
+    const weeklyGoal = 500;
+
+    res.status(200).json({
+      days,
+      totalXP,
+      totalMinutes: 0,
+      totalWords: progress.wordsLearned || 0,
+      weeklyGoal,
+      goalProgress: Math.min(100, (totalXP / weeklyGoal) * 100)
+    });
+  } catch (error) {
+    log.error("Error fetching weekly stats:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get learning stats
+export const getLearningStats = async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.user) {
+      return res.status(200).json({
+        totalXP: 0,
+        streak: 0,
+        level: "beginner",
+        wordsLearned: 0,
+        minutesLearned: 0,
+        challengesCompleted: 0
+      });
+    }
+
+    const userId = req.user._id;
+    const progress = await LearningProgress.findOne({ user: userId });
+
+    if (!progress) {
+      return res.status(200).json({
+        totalXP: 0,
+        streak: 0,
+        level: "beginner",
+        wordsLearned: 0,
+        minutesLearned: 0,
+        challengesCompleted: 0
+      });
+    }
+
+    res.status(200).json({
+      totalXP: progress.totalXP || 0,
+      streak: progress.currentStreak || 0,
+      level: progress.currentLevel || 1,
+      wordsLearned: progress.wordsLearned || progress.vocabulary?.length || 0,
+      minutesLearned: progress.totalStudyTime || 0,
+      challengesCompleted: progress.dailyChallenges?.length || 0,
+    });
+  } catch (error) {
+    log.error("Error fetching learning stats:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get leaderboard
+export const getLeaderboard = async (req, res) => {
+  try {
+    const { timeframe = "week", limit = 10 } = req.query;
+
+    // Get top users by XP - Use 'user' field from LearningProgress schema
+    const topUsers = await LearningProgress.find()
+      .sort({ totalXP: -1 })
+      .limit(parseInt(limit))
+      .populate("user", "fullName profilePic username");
+
+    const leaderboard = topUsers.map((progress, index) => ({
+      rank: index + 1,
+      fullName: progress.user?.fullName || "Unknown",
+      profilePic: progress.user?.profilePic || null,
+      username: progress.user?.username || null,
+      userId: progress.user?._id || null,
+      totalXP: progress.totalXP || 0,
+      level: progress.currentLevel || 1,
+      currentStreak: progress.currentStreak || 0,
+    })).filter(entry => entry.userId !== null); // Filter out entries with no user data
+
+    res.status(200).json({
+      leaderboard,
+      totalUsers: leaderboard.length,
+      currentUserRank: null // Will be calculated if needed
+    });
+  } catch (error) {
+    log.error("Error fetching leaderboard:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Get subscription status (mock for now)
+export const getSubscriptionStatus = async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.user) {
+      return res.status(200).json({
+        isPremium: false,
+        plan: "free",
+        expiresAt: null,
+        features: {
+          dailyChallenges: true,
+          vocabulary: true,
+          videos: true,
+          conversations: true,
+          maxVideosPerDay: 3,
+          maxConversationsPerDay: 1
+        }
+      });
+    }
+
+    const userId = req.user._id;
+
+    // For now, return a mock subscription status
+    // You can implement real subscription logic later
+    res.status(200).json({
+      isPremium: false,
+      plan: "free",
+      expiresAt: null,
+      features: {
+        dailyChallenges: true,
+        vocabulary: true,
+        videos: true,
+        conversations: true,
+        maxVideosPerDay: 3,
+        maxConversationsPerDay: 1
+      }
+    });
+  } catch (error) {
+    log.error("Error fetching subscription status:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Upgrade subscription (mock for now)
+export const upgradeSubscription = async (req, res) => {
+  try {
+    const { plan, paymentMethod } = req.body;
+
+    // Mock implementation - you can add real payment processing later
+    res.status(200).json({
+      success: true,
+      message: "Subscription upgraded successfully",
+      subscription: {
+        isPremium: true,
+        plan: plan,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+      }
+    });
+  } catch (error) {
+    log.error("Error upgrading subscription:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Seed daily challenges and vocabulary data
+export const seedLearningData = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    const language = user?.learningLanguage || "spanish";
+
+    let challengesAdded = 0;
+    let vocabAdded = 0;
+
+    // Seed challenges for user's language
+    const challenges = CHALLENGE_SEEDS[language] || CHALLENGE_SEEDS["english"];
+    for (const challenge of challenges) {
+      const seedChallenge = { ...challenge, language };
+      const exists = await DailyChallenge.findOne({
+        language: seedChallenge.language,
+        title: seedChallenge.title
+      });
+      if (!exists) {
+        await DailyChallenge.create(seedChallenge);
+        challengesAdded++;
+      }
+    }
+
+    // Seed vocabulary for user's language
+    const words = VOCABULARY_SEEDS[language] || VOCABULARY_SEEDS["english"];
+    for (const word of words) {
+      const seedWord = { ...word, language };
+      const exists = await Vocabulary.findOne({
+        language: seedWord.language,
+        word: seedWord.word
+      });
+      if (!exists) {
+        await Vocabulary.create(seedWord);
+        vocabAdded++;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Seeded ${challengesAdded} challenges and ${vocabAdded} vocabulary words for ${language}`,
+      challengesAdded,
+      vocabAdded
+    });
+  } catch (error) {
+    log.error("Error seeding learning data:", error);
+    res.status(500).json({ message: "Failed to seed learning data" });
+  }
+};

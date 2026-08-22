@@ -1,0 +1,86 @@
+1. Remove / Disable for Beta
+----Remove coding contests completely
+----Disable social feed (posts, likes, comments)
+----Remove certificates (PDFs, verification IDs)
+----Remove premium pricing UI and Stripe flow
+----Remove multiple AI personalities
+----Remove leaderboards beyond small groups
+----Remove multiple XP types and icons
+Goal: Reduce cognitive load and sharpen focus.
+
+2. Simpliify Navigation
+
+Max 4 main sections only:
+Daily Task
+Practice
+Partner
+Profile
+
+3. AI Tutor
+Keep only one AI style: supportive coach
+AI should:
+Correct mistakes
+Suggest better phrasing
+Adapt difficulty
+Remove open-ended chat behavior
+Tie AI responses directly to daily tasks
+
+4. Daily Learning Flow (VERY IMPORTANT)
+Implement a fixed daily flow:
+Short task (5–10 minutes)
+AI-guided practice
+Optional partner interaction
+Streak update
+No skipping steps.
+
+5. Vocabulary System
+Keep spaced repetition
+Limit daily words (no overload)
+Show “done for today” clearly
+
+6. Partner Matching
+One-on-one only
+Match by:
+Language
+Level
+Time availability
+Add minimum interaction rule (example: 5 minutes)
+
+7. Keep:
+
+Daily streak (only primary metric)
+Remove or Hide:
+XP points
+Multiple badges
+Complex progress dashboards
+User should answer only one question daily:
+“Did I show up today?”
+
+8. Implement a Short Onboarding
+Ask only:
+Language
+Level
+Daily availability
+Show this message clearly:
+“This platform helps you stay consistent.
+Just 10 minutes a day.”
+No feature explanations during onboarding.
+
+9. Analytics (Must Add)
+Track only:
+Day 1 retention
+Day 7 retention
+Daily streak completion
+Session duration
+Do not track vanity metrics.
+
+10. Rate Limiting
+Add rate limits for:
+Login
+AI calls
+Chat creation
+
+11. Cut features aggressively
+Focus on one daily habit loop
+Measure retention, not excitement
+Let users tell you what to build next

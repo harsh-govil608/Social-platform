@@ -1,0 +1,25 @@
+{
+  "name": "social-platform",
+  "version": "1.0.0",
+  "description": "Full-stack social learning platform",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd frontend && npm run dev",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "social",
+    "platform",
+    "learning"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "@ngrok/ngrok": "^1.5.2"
+  }
+}
